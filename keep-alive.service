@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 User=__USER__
 WorkingDirectory=__DIR__
-ExecStart=__DIR__/keep-alive -interval 5m -workers 16
+ExecStart=__DIR__/keep-alive -interval 5m -workers 16 -listen :8787
 Restart=always
 RestartSec=10
 

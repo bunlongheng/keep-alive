@@ -3,3 +3,4 @@
 *.log
 *.tmp
 status.json
+stats.json

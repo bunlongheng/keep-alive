@@ -6,6 +6,14 @@ build:
 run: build
 	./$(BIN) -once
 
+# Live terminal dashboard read from stats.json + keep-alive.log (works over ssh).
+tui: build
+	./$(BIN) -tui
+
+# One-shot all-time report to stdout.
+report: build
+	./$(BIN) -report
+
 # Cross-compile for a Raspberry Pi 5 (64-bit Raspberry Pi OS) from any machine.
 pi:
 	GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o $(BIN)-linux-arm64 .
@@ -23,6 +31,6 @@ uninstall:
 	sudo systemctl daemon-reload
 
 clean:
-	rm -f $(BIN) $(BIN)-linux-arm64 keep-alive.log status.json
+	rm -f $(BIN) $(BIN)-linux-arm64 keep-alive.log status.json stats.json
 
-.PHONY: build run pi install uninstall clean
+.PHONY: build run tui report pi install uninstall clean
