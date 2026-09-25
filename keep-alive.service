@@ -1,0 +1,14 @@
+[Unit]
+Description=keep-alive: ping every app URL so serverless functions stay warm
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=__USER__
+WorkingDirectory=__DIR__
+ExecStart=__DIR__/keep-alive -interval 5m -workers 16
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
