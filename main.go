@@ -547,7 +547,7 @@ func serve(addr string) {
 		if s.LastRound != nil {
 			down = s.LastRound.Total - s.LastRound.OK
 		}
-		page.Execute(w, map[string]interface{}{"S": s, "Down": down, "Pct": pct(s.OK, s.Pings), "G": g, "Next": next, "Every": strings.TrimSuffix(strings.TrimSuffix(interval.String(), "0s"), "0m")})
+		page.Execute(w, map[string]interface{}{"S": s, "Down": down, "Pct": pct(s.OK, s.Pings), "G": g, "Next": next, "Every": short(interval)})
 	})
 	mux.HandleFunc("/health", func(w http.ResponseWriter, req *http.Request) {
 		mu.RLock()
@@ -597,4 +597,15 @@ func serve(addr string) {
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		fmt.Fprintln(os.Stderr, "serve:", err)
 	}
+}
+
+// short prints 30m, 2h, 90s instead of 30m0s.
+func short(d time.Duration) string {
+	switch {
+	case d%time.Hour == 0:
+		return fmt.Sprintf("%dh", int(d/time.Hour))
+	case d%time.Minute == 0:
+		return fmt.Sprintf("%dm", int(d/time.Minute))
+	}
+	return d.String()
 }
