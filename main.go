@@ -410,7 +410,7 @@ h2{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
 .clock{text-align:right;line-height:1;margin-top:-6px;white-space:nowrap;flex:none;width:400px}
 .clock .t{font-size:52px;font-weight:700;color:#e6edf3;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .clock .t small{font-size:20px;font-weight:500;color:#8b949e;margin-left:6px}
-.clock .d{font-size:16px;color:#7ee787;letter-spacing:.12em;text-transform:uppercase;margin-top:10px}
+.clock .date{font-size:16px;color:#7ee787;letter-spacing:.12em;text-transform:uppercase;margin-top:10px}
 .clock .nx{font-size:12px;color:#6e7681;margin-top:10px;letter-spacing:.06em}.clock .nx b{color:#58a6ff;font-weight:600;font-variant-numeric:tabular-nums;text-shadow:0 0 12px rgba(88,166,255,.6)}
 .grid th.t.now{color:#7ee787;text-shadow:0 0 10px rgba(63,185,80,.8)}
 .grid td.c.now{background:linear-gradient(180deg,rgba(63,185,80,.14),rgba(63,185,80,.06));box-shadow:inset 0 0 14px rgba(63,185,80,.18)}
@@ -464,7 +464,7 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 </style></head><body>
 <div class="hd"><div><h1><img src="/icon.png" alt="">keep-alive</h1>
 <p class="sub">since <b>{{.S.Since}}</b> UTC · <b>{{.S.Rounds}}</b> rounds · <b>{{.S.Pings}}</b> pings · <b>{{printf "%.2f" .Pct}}%</b> ok{{if .S.LastRound}} · last round <b>{{.S.LastRound.TS}}</b> UTC, {{.S.LastRound.OK}}/{{.S.LastRound.Total}} in {{.S.LastRound.Took}}{{end}}</p></div>
-<div class="clock"><div class="t" id="ct"></div><div class="d" id="cd"></div><div class="nx">next run <b id="nx" data-at="{{.Next}}"></b></div></div></div>
+<div class="clock"><div class="t" id="ct"></div><div class="date" id="cd"></div><div class="nx">next run <b id="nx" data-at="{{.Next}}"></b></div></div></div>
 <div class="wrap"><table class="grid">
 <tr><th class="name">app</th><th>uptime</th><th class="n">avg</th><th class="n">last</th>{{$now := .G.Now}}{{range $i, $l := .G.Labels}}<th class="t{{if eq $i $now}} now{{end}}">{{$l}}</th>{{end}}</tr>
 {{range .G.Rows}}<tr class="r" data-url="{{.URL}}"><td class="name"><span class="app"><img src="{{.Icon}}" alt="" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='https://icons.duckduckgo.com/ip3/{{.Host}}.ico'}"><a href="{{.URL}}" target="_blank" rel="noreferrer">{{.Host}}</a></span></td>
