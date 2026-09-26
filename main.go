@@ -396,7 +396,9 @@ var page = template.Must(template.New("p").Funcs(template.FuncMap{"aliveInt": al
 body{margin:0;background:#0b0d10;color:#c9d1d9;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:28px 20px 60px}
 h1{font-size:13px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#7ee787;margin:0 0 4px}
 h2{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#8b949e;margin:40px 0 12px}
-.sub{color:#8b949e;margin:0 0 24px}
+.sub{color:#8b949e;margin:0 0 10px}
+.sw{display:flex;justify-content:flex-end;gap:14px;align-items:center;margin:0 0 14px;color:#6e7681}
+button{font:inherit;background:#161b22;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:3px 10px;cursor:pointer}button:hover{border-color:#8b949e}
 .sub b{color:#c9d1d9;font-weight:600}
 table{border-collapse:collapse;width:100%;max-width:1100px}
 th{text-align:left;color:#8b949e;font-weight:500;padding:0 12px 8px 0;border-bottom:1px solid #21262d}
@@ -413,9 +415,12 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 .wrap{overflow-x:auto}
 .grid{border-collapse:separate;border-spacing:0;width:auto;max-width:none}
 .grid th{border:0;padding:0 0 6px}
-.grid th.t{writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;color:#6e7681;padding:0 0 0 2px;height:40px;text-align:left;vertical-align:bottom}
+.grid th.t{writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;color:#6e7681;padding:0 0 0 2px;height:40px;text-align:left;vertical-align:top}
 .grid td{padding:4px 0;border-bottom:1px solid #161b22}
-.grid td.name{padding-right:16px;min-width:190px;max-width:220px;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;background:#0b0d10}
+.grid td.name,.grid th.name{padding-right:20px;white-space:nowrap;position:sticky;left:0;background:#0b0d10;text-align:left}
+.grid th{color:#8b949e;font-weight:500;padding-right:12px;vertical-align:bottom}
+.grid td.u,.grid td.n{padding-right:14px;white-space:nowrap;vertical-align:middle}.grid td.n{text-align:right}
+.grid td.c:first-of-type{padding-left:8px}
 .d{display:block;width:9px;height:9px;border-radius:50%;margin:0 auto;border:1px solid #30363d;box-sizing:border-box}
 .grid td.c{width:19px;min-width:19px;text-align:center}
 .d.ok{background:#3fb950;border-color:#3fb950}
@@ -423,24 +428,54 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 .d.now{box-shadow:0 0 0 3px rgba(63,185,80,.25)}
 .d.now.ko{box-shadow:0 0 0 3px rgba(248,81,73,.25)}
 .d.now.miss{background:#6e7681;border-color:#6e7681}
+.grid tr.r{cursor:pointer}.grid tr.r:hover td{background:#0f1319}.grid tr.r.open td{background:#0f1319}
+.grid tr.r.open td.name{background:#0f1319}
+.det td{padding:0 0 0 0;background:#0d1015;border-bottom:1px solid #21262d}
+.det .in{padding:12px 16px 14px;position:sticky;left:0;max-width:calc(100vw - 40px);box-sizing:border-box}
+.det .sum{color:#8b949e;margin-bottom:10px}.det .sum b{color:#c9d1d9;font-weight:600}
+.det .sum b.ko{color:#f85149}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 18px}
+.slot{white-space:nowrap}.slot .h{color:#6e7681;font-size:11px;margin-bottom:2px}
+.p{display:flex;gap:8px;font-variant-numeric:tabular-nums}.p .t{color:#8b949e}.p .s{width:26px}.p.ko .s,.p.ko .t{color:#f85149}
+.p .m{color:#6e7681;width:56px;text-align:right}
 </style></head><body>
 <h1>keep-alive</h1>
 <p class="sub">since <b>{{.S.Since}}</b> UTC · <b>{{.S.Rounds}}</b> rounds · <b>{{.S.Pings}}</b> pings · <b>{{printf "%.2f" .Pct}}%</b> ok{{if .S.LastRound}} · last round <b>{{.S.LastRound.TS}}</b> UTC, {{.S.LastRound.OK}}/{{.S.LastRound.Total}} in {{.S.LastRound.Took}}{{end}}</p>
-<table><tr><th>app</th><th>uptime</th><th class="n">ok</th><th class="n">avg</th><th class="n">last</th><th>last fail</th></tr>
-{{range .R}}<tr>
-<td><span class="app"><img src="{{.Icon}}" alt="" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='https://icons.duckduckgo.com/ip3/{{.Host}}.ico'}"><a href="{{.URL}}" target="_blank" rel="noreferrer">{{.Host}}</a></span></td>
-<td><span class="bar{{if lt .Pct 99.0}} bad{{else if lt .Pct 100.0}} warn{{end}}"><i style="width:{{printf "%.1f" .Pct}}%"></i></span>{{printf "%.2f" .Pct}}%</td>
-<td class="n">{{.OK}}/{{.Total}}</td><td class="n">{{.AvgMs}}ms</td>
-<td class="n{{if not (aliveInt .Last)}} fail{{end}}">{{.Last}}</td><td>{{.Fail}}</td>
-</tr>{{end}}
-</table>
-<h2>today · {{.G.Day}} · 1 dot per 30 min, local time</h2>
+<div class="sw"><span>today {{.G.Day}} · 1 dot per 30 min · click a row for its pings</span><button id="all" type="button">expand all</button></div>
 <div class="wrap"><table class="grid">
-<tr><th></th>{{range .G.Labels}}<th class="t">{{.}}</th>{{end}}</tr>
-{{range .G.Rows}}<tr><td class="name"><span class="app"><img src="{{.Icon}}" alt="" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='https://icons.duckduckgo.com/ip3/{{.Host}}.ico'}"><a href="{{.URL}}" target="_blank" rel="noreferrer">{{.Host}}</a></span></td>
+<tr><th class="name">app</th><th>uptime</th><th class="n">ok</th><th class="n">avg</th><th class="n">last</th>{{range .G.Labels}}<th class="t">{{.}}</th>{{end}}</tr>
+{{range .G.Rows}}<tr class="r" data-url="{{.URL}}"><td class="name"><span class="app"><img src="{{.Icon}}" alt="" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='https://icons.duckduckgo.com/ip3/{{.Host}}.ico'}"><a href="{{.URL}}" target="_blank" rel="noreferrer">{{.Host}}</a></span></td>
+<td class="u"><span class="bar{{if lt .Pct 99.0}} bad{{else if lt .Pct 100.0}} warn{{end}}"><i style="width:{{printf "%.1f" .Pct}}%"></i></span>{{printf "%.2f" .Pct}}%</td>
+<td class="n">{{.OK}}/{{.Total}}</td><td class="n">{{.AvgMs}}ms</td><td class="n{{if not (aliveInt .Last)}} fail{{end}}">{{.Last}}</td>
 {{$now := $.G.Now}}{{range $i, $c := .Cells}}<td class="c"><span class="d{{if $c}}{{if aliveInt $c.Status}} ok{{else}} ko{{end}}{{else if eq $i $now}} miss{{end}}{{if eq $i $now}} now{{end}}"{{if $c}} title="{{$c.TS}}  {{$c.Status}}  {{$c.Ms}}ms"{{end}}></span></td>{{end}}
 </tr>{{end}}
 </table></div>
+<script>
+async function openRow(tr){
+  if(tr.nextElementSibling&&tr.nextElementSibling.classList.contains("det"))return;
+  tr.classList.add("open");
+  var det=document.createElement("tr");det.className="det";
+  det.innerHTML='<td colspan="'+tr.children.length+'"><div class="in"><div class="sum">loading</div></div></td>';
+  tr.after(det);
+  var r=await fetch("/pings?url="+encodeURIComponent(tr.dataset.url));var d=await r.json();
+  var ok=d.pings.filter(function(p){return p.ok}).length,n=d.pings.length;
+  var ms=d.pings.map(function(p){return p.ms});
+  var avg=n?Math.round(ms.reduce(function(a,b){return a+b},0)/n):0;
+  var fails=d.pings.filter(function(p){return !p.ok});
+  var h='<div class="sum">today <b>'+n+'</b> pings · <b'+(fails.length?' class="ko"':'')+'>'+ok+'/'+n+' ok</b> · avg <b>'+avg+'ms</b> · min <b>'+(n?Math.min.apply(null,ms):0)+'ms</b> · max <b>'+(n?Math.max.apply(null,ms):0)+'ms</b>'
+    +(fails.length?' · failed at <b class="ko">'+fails.map(function(p){return p.ts+" ("+p.status+")"}).join(", ")+'</b>':'')+'</div>';
+  var by={};d.pings.forEach(function(p){(by[p.slot]=by[p.slot]||[]).push(p)});
+  h+='<div class="slots">'+Object.keys(by).map(function(k){
+    return '<div class="slot"><div class="h">'+k+'</div>'+by[k].map(function(p){
+      return '<div class="p'+(p.ok?'':' ko')+'"><span class="t">'+p.ts+'</span><span class="s">'+p.status+'</span><span class="m">'+p.ms+'ms</span></div>'}).join("")+'</div>'}).join("")+'</div>';
+  det.querySelector(".in").innerHTML=h;
+}
+function closeRow(tr){var n=tr.nextElementSibling;if(n&&n.classList.contains("det"))n.remove();tr.classList.remove("open")}
+var rows=document.querySelectorAll("tr.r");
+rows.forEach(function(tr){tr.addEventListener("click",function(e){if(e.target.closest("a"))return;tr.classList.contains("open")?closeRow(tr):openRow(tr)})});
+var all=document.getElementById("all"),allOpen=false;
+all.addEventListener("click",function(){allOpen=!allOpen;all.textContent=allOpen?"collapse all":"expand all";rows.forEach(allOpen?openRow:closeRow)});
+</script>
 </body></html>`))
 
 func serve(addr string) {
@@ -456,9 +491,17 @@ func serve(addr string) {
 			return
 		}
 		rs, s := rows()
-		urls, _ := readURLs(urlsFile) // grid rows follow urls.txt order
+		urls, _ := readURLs(urlsFile) // rows follow urls.txt order
+		g := buildGrid(logFile, iconsPath, urls)
+		byURL := map[string]row{}
+		for _, r := range rs {
+			byURL[r.URL] = r
+		}
+		for i := range g.Rows {
+			g.Rows[i].row = byURL[g.Rows[i].URL]
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		page.Execute(w, map[string]interface{}{"R": rs, "S": s, "Pct": pct(s.OK, s.Pings), "G": buildGrid(logFile, iconsPath, urls)})
+		page.Execute(w, map[string]interface{}{"S": s, "Pct": pct(s.OK, s.Pings), "G": g})
 	})
 	mux.HandleFunc("/health", func(w http.ResponseWriter, req *http.Request) {
 		mu.RLock()
@@ -474,6 +517,11 @@ func serve(addr string) {
 			return
 		}
 		fmt.Fprintf(w, "ok %d/%d at %s\n", lr.OK, lr.Total, lr.TS)
+	})
+	mux.HandleFunc("/pings", func(w http.ResponseWriter, req *http.Request) {
+		u := req.URL.Query().Get("url")
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"url": u, "pings": pingsToday(logFile, u)})
 	})
 	mux.HandleFunc("/stats.json", func(w http.ResponseWriter, req *http.Request) {
 		mu.RLock()

@@ -27,6 +27,7 @@ type gridRow struct {
 	Host  string
 	Icon  string
 	Cells []*cell // 1 per slot, nil = no ping in that slot
+	row           // all-time numbers for the same URL
 }
 
 type grid struct {
@@ -129,6 +130,49 @@ func iconOverrides(path string) map[string]string {
 		if len(fs) == 2 && !strings.HasPrefix(fs[0], "#") {
 			out[fs[0]] = fs[1]
 		}
+	}
+	return out
+}
+
+type pingRec struct {
+	TS     string `json:"ts"` // local HH:MM:SS
+	Slot   string `json:"slot"`
+	Status int    `json:"status"`
+	Ms     int64  `json:"ms"`
+	OK     bool   `json:"ok"`
+}
+
+// pingsToday returns every ping of 1 URL since local midnight, oldest first.
+func pingsToday(logPath, u string) []pingRec {
+	now := time.Now()
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+	out := []pingRec{}
+	f, err := os.Open(logPath)
+	if err != nil {
+		return out
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		fs := strings.Fields(sc.Text())
+		if len(fs) < 4 || fs[3] != u {
+			continue
+		}
+		t, err := time.Parse("2006-01-02 15:04:05", fs[0]+" "+fs[1])
+		if err != nil {
+			continue
+		}
+		t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), 0, time.UTC).Local()
+		if t.Before(start) {
+			continue
+		}
+		code, _ := strconv.Atoi(fs[2])
+		var ms int64
+		if len(fs) > 4 {
+			ms, _ = strconv.ParseInt(strings.TrimSuffix(fs[4], "ms"), 10, 64)
+		}
+		slot := t.Truncate(slotLen)
+		out = append(out, pingRec{TS: t.Format("15:04:05"), Slot: slot.Format("3:04pm"), Status: code, Ms: ms, OK: alive(code)})
 	}
 	return out
 }
