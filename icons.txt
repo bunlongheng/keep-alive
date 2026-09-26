@@ -1,0 +1,15 @@
+# host  icon-name   (icon = https://bunlongheng.com/app-icons/<name>.png)
+# Hosts not listed use the rule: strip -bheng.vercel.app or .vercel.app from the host.
+www.bunlongheng.com  bheng
+3pi-poc-bheng.vercel.app  3pi
+clips-bheng.vercel.app  clip
+dropzone-pied.vercel.app  drop
+flows-bheng-bheng.vercel.app  flows
+ifttt-poc-bheng.vercel.app  automations
+mybabies-bheng.vercel.app  74-mybabies
+periodic-table-ashen.vercel.app  periodic-table
+repo-audit-demo-bheng.vercel.app  repo-audit
+study-timer-bheng-bheng.vercel.app  study-timer
+us-states-bheng.vercel.app  states
+workflows-bheng.vercel.app  automations
+worldcup26-iota.vercel.app  worldcup-2026

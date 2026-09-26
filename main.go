@@ -59,18 +59,24 @@ type stats struct {
 }
 
 var (
-	mu       sync.RWMutex
-	allTime  = &stats{URLs: map[string]*urlStat{}}
-	interval time.Duration
+	mu        sync.RWMutex
+	allTime   = &stats{URLs: map[string]*urlStat{}}
+	interval  time.Duration
+	logFile   string
+	iconsPath string
+	urlsFile  string
 )
 
 func main() {
-	urlsPath := flag.String("urls", "urls.txt", "file with one URL per line, # starts a comment")
+	flag.StringVar(&urlsFile, "urls", "urls.txt", "file with one URL per line, # starts a comment")
+	urlsPath := &urlsFile
 	workers := flag.Int("workers", 16, "parallel requests")
 	flag.DurationVar(&interval, "interval", 5*time.Minute, "time between rounds")
 	timeout := flag.Duration("timeout", 10*time.Second, "per-request timeout")
 	retries := flag.Int("retries", 1, "retries on network error, never on an HTTP status")
-	logPath := flag.String("log", "keep-alive.log", "append log: TS  STATUS  URL  MS")
+	flag.StringVar(&logFile, "log", "keep-alive.log", "append log: TS  STATUS  URL  MS")
+	logPath := &logFile
+	flag.StringVar(&iconsPath, "icons", "icons.txt", "host to icon-name overrides for the html page")
 	statusPath := flag.String("status", "status.json", "latest round as JSON")
 	statsPath := flag.String("stats", "stats.json", "all-time totals as JSON")
 	keepLines := flag.Int("keep", 25000, "trim the log to this many lines after each round")
@@ -330,6 +336,8 @@ func writeJSON(path string, v interface{}) error {
 
 type row struct {
 	URL   string
+	Host  string
+	Icon  string
 	Pct   float64
 	AvgMs int64
 	Last  int
@@ -343,7 +351,7 @@ func rows() ([]row, stats) {
 	defer mu.RUnlock()
 	var out []row
 	for u, s := range allTime.URLs {
-		r := row{URL: u, Last: s.Last, OK: s.OK, Total: s.Total, Fail: s.LastFail}
+		r := row{URL: u, Host: host(u), Icon: iconFor(u, iconsPath), Last: s.Last, OK: s.OK, Total: s.Total, Fail: s.LastFail}
 		if s.Total > 0 {
 			r.Pct = 100 * float64(s.OK) / float64(s.Total)
 			r.AvgMs = s.SumMs / int64(s.Total)
@@ -380,38 +388,60 @@ func textReport() string {
 	return b.String()
 }
 
-var page = template.Must(template.New("p").Funcs(template.FuncMap{"aliveInt": alive}).Parse(`<!doctype html><html lang="en"><head><meta charset="utf-8">
+var page = template.Must(template.New("p").Funcs(template.FuncMap{"aliveInt": alive, "idx": func(i, n int) int { return i - n }}).Parse(`<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="60">
 <title>keep-alive</title>
 <style>
 :root{color-scheme:dark}
 body{margin:0;background:#0b0d10;color:#c9d1d9;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:28px 20px 60px}
 h1{font-size:13px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#7ee787;margin:0 0 4px}
+h2{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#8b949e;margin:40px 0 12px}
 .sub{color:#8b949e;margin:0 0 24px}
 .sub b{color:#c9d1d9;font-weight:600}
 table{border-collapse:collapse;width:100%;max-width:1100px}
 th{text-align:left;color:#8b949e;font-weight:500;padding:0 12px 8px 0;border-bottom:1px solid #21262d}
 td{padding:6px 12px 6px 0;border-bottom:1px solid #161b22;white-space:nowrap}
 td.n{text-align:right;font-variant-numeric:tabular-nums}
+.app{display:flex;align-items:center;gap:8px}
+.app img{width:16px;height:16px;border-radius:4px;flex:none;background:#21262d}
 .bar{display:inline-block;width:80px;height:6px;background:#21262d;border-radius:3px;vertical-align:middle;margin-right:8px;overflow:hidden}
 .bar i{display:block;height:100%;background:#3fb950}
 .bad i{background:#f85149}
 .warn i{background:#d29922}
 a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
-.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3fb950;margin-right:8px;vertical-align:middle}
-.dot.off{background:#f85149}
 .fail{color:#f85149}
+.wrap{overflow-x:auto}
+.grid{border-collapse:separate;border-spacing:0;width:auto;max-width:none}
+.grid th{border:0;padding:0 0 6px}
+.grid th.t{writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;color:#6e7681;padding:0 0 0 2px;height:40px;text-align:left;vertical-align:bottom}
+.grid td{padding:4px 0;border-bottom:1px solid #161b22}
+.grid td.name{padding-right:16px;min-width:190px;max-width:220px;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;background:#0b0d10}
+.d{display:block;width:9px;height:9px;border-radius:50%;margin:0 auto;border:1px solid #30363d;box-sizing:border-box}
+.grid td.c{width:19px;min-width:19px;text-align:center}
+.d.ok{background:#3fb950;border-color:#3fb950}
+.d.ko{background:#f85149;border-color:#f85149}
+.d.now{box-shadow:0 0 0 3px rgba(63,185,80,.25)}
+.d.now.ko{box-shadow:0 0 0 3px rgba(248,81,73,.25)}
+.d.now.miss{background:#6e7681;border-color:#6e7681}
 </style></head><body>
 <h1>keep-alive</h1>
 <p class="sub">since <b>{{.S.Since}}</b> UTC · <b>{{.S.Rounds}}</b> rounds · <b>{{.S.Pings}}</b> pings · <b>{{printf "%.2f" .Pct}}%</b> ok{{if .S.LastRound}} · last round <b>{{.S.LastRound.TS}}</b> UTC, {{.S.LastRound.OK}}/{{.S.LastRound.Total}} in {{.S.LastRound.Took}}{{end}}</p>
 <table><tr><th>app</th><th>uptime</th><th class="n">ok</th><th class="n">avg</th><th class="n">last</th><th>last fail</th></tr>
 {{range .R}}<tr>
-<td><span class="dot{{if not (aliveInt .Last)}} off{{end}}"></span><a href="{{.URL}}" target="_blank" rel="noreferrer">{{.URL}}</a></td>
+<td><span class="app"><img src="{{.Icon}}" alt="" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='https://icons.duckduckgo.com/ip3/{{.Host}}.ico'}"><a href="{{.URL}}" target="_blank" rel="noreferrer">{{.Host}}</a></span></td>
 <td><span class="bar{{if lt .Pct 99.0}} bad{{else if lt .Pct 100.0}} warn{{end}}"><i style="width:{{printf "%.1f" .Pct}}%"></i></span>{{printf "%.2f" .Pct}}%</td>
 <td class="n">{{.OK}}/{{.Total}}</td><td class="n">{{.AvgMs}}ms</td>
 <td class="n{{if not (aliveInt .Last)}} fail{{end}}">{{.Last}}</td><td>{{.Fail}}</td>
 </tr>{{end}}
-</table></body></html>`))
+</table>
+<h2>today · {{.G.Day}} · 1 dot per 30 min, local time</h2>
+<div class="wrap"><table class="grid">
+<tr><th></th>{{range .G.Labels}}<th class="t">{{.}}</th>{{end}}</tr>
+{{range .G.Rows}}<tr><td class="name"><span class="app"><img src="{{.Icon}}" alt="" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='https://icons.duckduckgo.com/ip3/{{.Host}}.ico'}"><a href="{{.URL}}" target="_blank" rel="noreferrer">{{.Host}}</a></span></td>
+{{$now := $.G.Now}}{{range $i, $c := .Cells}}<td class="c"><span class="d{{if $c}}{{if aliveInt $c.Status}} ok{{else}} ko{{end}}{{else if eq $i $now}} miss{{end}}{{if eq $i $now}} now{{end}}"{{if $c}} title="{{$c.TS}}  {{$c.Status}}  {{$c.Ms}}ms"{{end}}></span></td>{{end}}
+</tr>{{end}}
+</table></div>
+</body></html>`))
 
 func serve(addr string) {
 	mux := http.NewServeMux()
@@ -426,8 +456,9 @@ func serve(addr string) {
 			return
 		}
 		rs, s := rows()
+		urls, _ := readURLs(urlsFile) // grid rows follow urls.txt order
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		page.Execute(w, map[string]interface{}{"R": rs, "S": s, "Pct": pct(s.OK, s.Pings)})
+		page.Execute(w, map[string]interface{}{"R": rs, "S": s, "Pct": pct(s.OK, s.Pings), "G": buildGrid(logFile, iconsPath, urls)})
 	})
 	mux.HandleFunc("/health", func(w http.ResponseWriter, req *http.Request) {
 		mu.RLock()
