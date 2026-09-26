@@ -544,10 +544,10 @@ func serve(addr string) {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		down := 0
-	if s.LastRound != nil {
-		down = s.LastRound.Total - s.LastRound.OK
-	}
-	page.Execute(w, map[string]interface{}{"S": s, "Down": down, "Pct": pct(s.OK, s.Pings), "G": g, "Next": next, "Every": strings.TrimSuffix(strings.TrimSuffix(interval.String(), "0s"), "0m")})
+		if s.LastRound != nil {
+			down = s.LastRound.Total - s.LastRound.OK
+		}
+		page.Execute(w, map[string]interface{}{"S": s, "Down": down, "Pct": pct(s.OK, s.Pings), "G": g, "Next": next, "Every": strings.TrimSuffix(strings.TrimSuffix(interval.String(), "0s"), "0m")})
 	})
 	mux.HandleFunc("/health", func(w http.ResponseWriter, req *http.Request) {
 		mu.RLock()
