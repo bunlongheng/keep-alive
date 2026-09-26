@@ -435,7 +435,8 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 .sub b.bad{color:#f85149}
 a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 .fail{color:#f85149}
-.wrap{overflow-x:auto}
+.wrap{overflow-x:clip}
+@media (max-width:1380px){.grid th.t,.grid td.c{display:none}}
 .grid{border-collapse:separate;border-spacing:0;width:100%;max-width:none}
 .grid th{border:0;padding:0 0 6px}
 .grid th.t{writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;color:#6e7681;padding:0 0 0 2px;height:40px;text-align:left;vertical-align:top}
