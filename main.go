@@ -432,6 +432,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 .dn.warn .v{stroke:#d29922}.dn.bad .v{stroke:#f85149}
 .dn text{transform:rotate(90deg);transform-origin:18px 18px;fill:#c9d1d9;font:700 8px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-anchor:middle;letter-spacing:-.2px}
 .grid td.u{padding:5px 12px 5px 0}
+.sub b.bad{color:#f85149}
 a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 .fail{color:#f85149}
 .wrap{overflow-x:auto}
@@ -469,7 +470,7 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 .pt tr.ko .lb{background:#f85149}
 </style></head><body>
 <div class="hd"><div><h1><img src="/icon.png" alt="">keep-alive</h1>
-<p class="sub"><b>{{len .G.Rows}}</b> apps, all pinged every <b>{{.Every}}</b> · <b>{{.S.Rounds}}</b> rounds since <b>{{.S.Since}}</b> UTC = <b>{{.S.Pings}}</b> pings, <b>{{printf "%.2f" .Pct}}%</b> ok{{if .S.LastRound}} · last round: <b>{{.S.LastRound.OK}}/{{.S.LastRound.Total}}</b> up in {{.S.LastRound.Took}}{{end}}</p></div>
+<p class="sub"><b>{{len .G.Rows}}</b> apps, all pinged every <b>{{.Every}}</b> · <b>{{.S.Rounds}}</b> rounds since <b>{{.S.Since}}</b> UTC = <b>{{.S.Pings}}</b> pings, <b>{{printf "%.2f" .Pct}}%</b> ok{{if .S.LastRound}} · last round: {{if .Down}}<b class="bad">{{.Down}} down</b>{{else}}<b>all up</b>{{end}} in {{.S.LastRound.Took}}{{end}}</p></div>
 <div class="clock"><div class="t" id="ct"></div><div class="date" id="cd"></div><div class="nx">next run <b id="nx" data-at="{{.Next}}"></b></div></div></div>
 <div class="wrap"><table class="grid">
 <tr><th class="name">app</th><th>uptime</th><th class="n">avg</th><th class="n">last</th>{{$now := .G.Now}}{{range $i, $l := .G.Labels}}<th class="t{{if eq $i $now}} now{{end}}">{{$l}}</th>{{end}}</tr>
@@ -542,7 +543,11 @@ func serve(addr string) {
 			}
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		page.Execute(w, map[string]interface{}{"S": s, "Pct": pct(s.OK, s.Pings), "G": g, "Next": next, "Every": strings.TrimSuffix(strings.TrimSuffix(interval.String(), "0s"), "0m")})
+		down := 0
+	if s.LastRound != nil {
+		down = s.LastRound.Total - s.LastRound.OK
+	}
+	page.Execute(w, map[string]interface{}{"S": s, "Down": down, "Pct": pct(s.OK, s.Pings), "G": g, "Next": next, "Every": strings.TrimSuffix(strings.TrimSuffix(interval.String(), "0s"), "0m")})
 	})
 	mux.HandleFunc("/health", func(w http.ResponseWriter, req *http.Request) {
 		mu.RLock()
