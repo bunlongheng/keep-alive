@@ -430,14 +430,18 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 .d.now.miss{background:#6e7681;border-color:#6e7681}
 .grid tr.r{cursor:pointer}.grid tr.r:hover td{background:#0f1319}.grid tr.r.open td{background:#0f1319}
 .grid tr.r.open td.name{background:#0f1319}
-.det td{padding:0 0 0 0;background:#0d1015;border-bottom:1px solid #21262d}
-.det .in{padding:12px 16px 14px;position:sticky;left:0;max-width:calc(100vw - 40px);box-sizing:border-box}
-.det .sum{color:#8b949e;margin-bottom:10px}.det .sum b{color:#c9d1d9;font-weight:600}
+.det td{padding:0;background:#0d1015;border-bottom:1px solid #21262d}
+.det .in{padding:14px 16px 16px;position:sticky;left:0;max-width:calc(100vw - 40px);box-sizing:border-box}
+.det .sum{color:#8b949e;margin-bottom:12px;font-size:13px}.det .sum b{color:#c9d1d9;font-weight:600}
 .det .sum b.ko{color:#f85149}
-.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 18px}
-.slot{white-space:nowrap}.slot .h{color:#6e7681;font-size:11px;margin-bottom:2px}
-.p{display:flex;gap:8px;font-variant-numeric:tabular-nums}.p .t{color:#8b949e}.p .s{width:26px}.p.ko .s,.p.ko .t{color:#f85149}
-.p .m{color:#6e7681;width:56px;text-align:right}
+.pt{max-height:420px;overflow-y:auto;max-width:560px;border:1px solid #21262d;border-radius:6px}
+.pt table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.pt th{position:sticky;top:0;background:#161b22;color:#8b949e;font-weight:500;text-align:left;padding:7px 12px;border-bottom:1px solid #30363d}
+.pt td{padding:6px 12px;border-bottom:1px solid #161b22;white-space:nowrap;background:transparent}
+.pt td.ts{color:#e6edf3;font-weight:600}.pt td.sl{color:#6e7681}.pt td.st{color:#7ee787}.pt td.ms{text-align:right}
+.pt tr.ko td.st,.pt tr.ko td.ts{color:#f85149}
+.pt .lb{display:inline-block;height:6px;background:#3fb950;border-radius:3px;margin-right:8px;vertical-align:middle}
+.pt tr.ko .lb{background:#f85149}
 </style></head><body>
 <h1>keep-alive</h1>
 <p class="sub">since <b>{{.S.Since}}</b> UTC · <b>{{.S.Rounds}}</b> rounds · <b>{{.S.Pings}}</b> pings · <b>{{printf "%.2f" .Pct}}%</b> ok{{if .S.LastRound}} · last round <b>{{.S.LastRound.TS}}</b> UTC, {{.S.LastRound.OK}}/{{.S.LastRound.Total}} in {{.S.LastRound.Took}}{{end}}</p>
@@ -464,10 +468,11 @@ async function openRow(tr){
   var fails=d.pings.filter(function(p){return !p.ok});
   var h='<div class="sum">today <b>'+n+'</b> pings · <b'+(fails.length?' class="ko"':'')+'>'+ok+'/'+n+' ok</b> · avg <b>'+avg+'ms</b> · min <b>'+(n?Math.min.apply(null,ms):0)+'ms</b> · max <b>'+(n?Math.max.apply(null,ms):0)+'ms</b>'
     +(fails.length?' · failed at <b class="ko">'+fails.map(function(p){return p.ts+" ("+p.status+")"}).join(", ")+'</b>':'')+'</div>';
-  var by={};d.pings.forEach(function(p){(by[p.slot]=by[p.slot]||[]).push(p)});
-  h+='<div class="slots">'+Object.keys(by).map(function(k){
-    return '<div class="slot"><div class="h">'+k+'</div>'+by[k].map(function(p){
-      return '<div class="p'+(p.ok?'':' ko')+'"><span class="t">'+p.ts+'</span><span class="s">'+p.status+'</span><span class="m">'+p.ms+'ms</span></div>'}).join("")+'</div>'}).join("")+'</div>';
+  var mx=n?Math.max.apply(null,ms):1;
+  h+='<div class="pt"><table><tr><th>time</th><th>slot</th><th>status</th><th style="text-align:right">latency</th></tr>'
+    +d.pings.slice().reverse().map(function(p){
+      return '<tr'+(p.ok?'':' class="ko"')+'><td class="ts">'+p.ts+'</td><td class="sl">'+p.slot+'</td><td class="st">'+p.status+'</td><td class="ms"><span class="lb" style="width:'+Math.max(4,Math.round(90*p.ms/mx))+'px"></span>'+p.ms+'ms</td></tr>'}).join("")
+    +'</table></div>';
   det.querySelector(".in").innerHTML=h;
 }
 function closeRow(tr){var n=tr.nextElementSibling;if(n&&n.classList.contains("det"))n.remove();tr.classList.remove("open")}
