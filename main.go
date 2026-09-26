@@ -446,7 +446,10 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 .d.ko{background:#f85149;border-color:#f85149}
 .d.now{box-shadow:0 0 0 3px rgba(63,185,80,.25)}
 .d.now.ko{box-shadow:0 0 0 3px rgba(248,81,73,.25)}
-.d.now.miss{background:#6e7681;border-color:#6e7681}
+@keyframes blink{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1.1)}}
+.d.now.miss{background:#3fb950;border-color:#3fb950;animation:blink 1s ease-in-out infinite}
+@keyframes colpulse{0%,100%{box-shadow:inset 0 0 14px rgba(63,185,80,.12)}50%{box-shadow:inset 0 0 22px rgba(63,185,80,.4)}}
+.grid td.c.now:has(.miss){animation:colpulse 1s ease-in-out infinite}
 .grid tr.r{cursor:pointer}.grid tr.r:hover td{background:#0f1319}.grid tr.r.open td{background:#0f1319}
 .grid tr.r.open td.name{background:#0f1319}
 .det td{padding:0;background:#0d1015;border-bottom:1px solid #21262d}
