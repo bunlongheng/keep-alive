@@ -425,10 +425,13 @@ td{padding:6px 12px 6px 0;border-bottom:1px solid #161b22;white-space:nowrap}
 td.n{text-align:right;font-variant-numeric:tabular-nums}
 .app{display:flex;align-items:center;gap:8px}
 .app img{width:16px;height:16px;border-radius:4px;flex:none;background:#21262d}
-.bar{display:inline-block;width:44px;height:6px;background:#21262d;border-radius:3px;vertical-align:middle;margin-right:8px;overflow:hidden}
-.bar i{display:block;height:100%;background:#3fb950}
-.bad i{background:#f85149}
-.warn i{background:#d29922}
+.dn{width:36px;height:36px;display:block;transform:rotate(-90deg)}
+.dn circle{fill:none;stroke-width:4}
+.dn .t{stroke:#21262d}
+.dn .v{stroke:#3fb950;stroke-linecap:round;transition:stroke-dasharray .6s}
+.dn.warn .v{stroke:#d29922}.dn.bad .v{stroke:#f85149}
+.dn text{transform:rotate(90deg);transform-origin:18px 18px;fill:#c9d1d9;font:700 8px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-anchor:middle;letter-spacing:-.2px}
+.grid td.u{padding:5px 12px 5px 0}
 a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 .fail{color:#f85149}
 .wrap{overflow-x:auto}
@@ -471,7 +474,7 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 <div class="wrap"><table class="grid">
 <tr><th class="name">app</th><th>uptime</th><th class="n">avg</th><th class="n">last</th>{{$now := .G.Now}}{{range $i, $l := .G.Labels}}<th class="t{{if eq $i $now}} now{{end}}">{{$l}}</th>{{end}}</tr>
 {{range .G.Rows}}<tr class="r" data-url="{{.URL}}"><td class="name"><span class="app"><img src="{{.Icon}}" alt="" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='https://icons.duckduckgo.com/ip3/{{.Host}}.ico'}"><a href="{{.URL}}" target="_blank" rel="noreferrer">{{.Host}}</a></span></td>
-<td class="u"><span class="bar{{if lt .Pct 99.0}} bad{{else if lt .Pct 100.0}} warn{{end}}"><i style="width:{{printf "%.1f" .Pct}}%"></i></span>{{printf "%.2f" .Pct}}%</td>
+<td class="u"><svg class="dn{{if lt .Pct 99.0}} bad{{else if lt .Pct 100.0}} warn{{end}}" viewBox="0 0 36 36"><circle class="t" cx="18" cy="18" r="15"/><circle class="v" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="{{printf "%.2f" .Pct}} 100"/><text x="18" y="21">{{if ge .Pct 100.0}}100{{else}}{{printf "%.1f" .Pct}}{{end}}%</text></svg></td>
 <td class="n">{{.AvgMs}}ms</td><td class="n{{if not (aliveInt .Last)}} fail{{end}}">{{.Last}}</td>
 {{$now := $.G.Now}}{{range $i, $c := .Cells}}<td class="c{{if eq $i $now}} now{{end}}"><span class="d{{if $c}}{{if aliveInt $c.Status}} ok{{else}} ko{{end}}{{else if eq $i $now}} miss{{end}}{{if eq $i $now}} now{{end}}"{{if $c}} title="{{$c.TS}}  {{$c.Status}}  {{$c.Ms}}ms"{{end}}></span></td>{{end}}
 </tr>{{end}}
