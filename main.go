@@ -8,6 +8,7 @@ package main
 
 import (
 	"bufio"
+	"embed"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -57,6 +58,9 @@ type stats struct {
 	LastRound *round              `json:"lastRound,omitempty"`
 	URLs      map[string]*urlStat `json:"urls"`
 }
+
+//go:embed static
+var static embed.FS
 
 var (
 	mu        sync.RWMutex
@@ -391,14 +395,29 @@ func textReport() string {
 var page = template.Must(template.New("p").Funcs(template.FuncMap{"aliveInt": alive, "idx": func(i, n int) int { return i - n }}).Parse(`<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="60">
 <title>keep-alive</title>
+<link rel="icon" type="image/png" href="/favicon.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#0b0d10">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="keep-alive">
 <style>
 :root{color-scheme:dark}
 body{margin:0;background:#0b0d10;color:#c9d1d9;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:28px 20px 60px}
-h1{font-size:13px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#7ee787;margin:0 0 4px}
+h1{font-size:13px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#7ee787;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+h1 img{width:28px;height:28px}
 h2{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#8b949e;margin:40px 0 12px}
-.sub{color:#8b949e;margin:0 0 10px}
-.sw{display:flex;justify-content:flex-end;gap:14px;align-items:center;margin:0 0 14px;color:#6e7681}
-button{font:inherit;background:#161b22;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:3px 10px;cursor:pointer}button:hover{border-color:#8b949e}
+.sub{color:#8b949e;margin:0 0 24px}
+.hd{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex-wrap:wrap;margin:0 0 28px}
+.hd .sub{margin:0}
+.clock{text-align:right;line-height:1;margin-top:-6px;white-space:nowrap;flex:none;width:400px}
+.clock .t{font-size:52px;font-weight:700;color:#e6edf3;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.clock .t small{font-size:20px;font-weight:500;color:#8b949e;margin-left:6px}
+.clock .d{font-size:16px;color:#7ee787;letter-spacing:.12em;text-transform:uppercase;margin-top:10px}
+.clock .nx{font-size:12px;color:#6e7681;margin-top:10px;letter-spacing:.06em}.clock .nx b{color:#58a6ff;font-weight:600;font-variant-numeric:tabular-nums;text-shadow:0 0 12px rgba(88,166,255,.6)}
+.grid th.t.now{color:#7ee787;text-shadow:0 0 10px rgba(63,185,80,.8)}
+.grid td.c.now{background:linear-gradient(180deg,rgba(63,185,80,.14),rgba(63,185,80,.06));box-shadow:inset 0 0 14px rgba(63,185,80,.18)}
+.grid tr:first-child th.t.now{background:linear-gradient(0deg,rgba(63,185,80,.14),transparent)}
+.d.now{box-shadow:0 0 0 3px rgba(63,185,80,.3),0 0 12px rgba(63,185,80,.9)}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 3px rgba(63,185,80,.3),0 0 10px rgba(63,185,80,.7)}50%{box-shadow:0 0 0 4px rgba(63,185,80,.15),0 0 18px rgba(63,185,80,1)}}
+.d.now.ok{animation:pulse 2.4s ease-in-out infinite}
 .sub b{color:#c9d1d9;font-weight:600}
 table{border-collapse:collapse;width:100%;max-width:1100px}
 th{text-align:left;color:#8b949e;font-weight:500;padding:0 12px 8px 0;border-bottom:1px solid #21262d}
@@ -406,7 +425,7 @@ td{padding:6px 12px 6px 0;border-bottom:1px solid #161b22;white-space:nowrap}
 td.n{text-align:right;font-variant-numeric:tabular-nums}
 .app{display:flex;align-items:center;gap:8px}
 .app img{width:16px;height:16px;border-radius:4px;flex:none;background:#21262d}
-.bar{display:inline-block;width:80px;height:6px;background:#21262d;border-radius:3px;vertical-align:middle;margin-right:8px;overflow:hidden}
+.bar{display:inline-block;width:44px;height:6px;background:#21262d;border-radius:3px;vertical-align:middle;margin-right:8px;overflow:hidden}
 .bar i{display:block;height:100%;background:#3fb950}
 .bad i{background:#f85149}
 .warn i{background:#d29922}
@@ -417,9 +436,9 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 .grid th{border:0;padding:0 0 6px}
 .grid th.t{writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;color:#6e7681;padding:0 0 0 2px;height:40px;text-align:left;vertical-align:top}
 .grid td{padding:4px 0;border-bottom:1px solid #161b22}
-.grid td.name,.grid th.name{padding-right:20px;white-space:nowrap;position:sticky;left:0;background:#0b0d10;text-align:left}
+.grid td.name,.grid th.name{padding-right:14px;white-space:nowrap;position:sticky;left:0;background:#0b0d10;text-align:left}
 .grid th{color:#8b949e;font-weight:500;padding-right:12px;vertical-align:bottom}
-.grid td.u,.grid td.n{padding-right:14px;white-space:nowrap;vertical-align:middle}.grid td.n{text-align:right}
+.grid td.u,.grid td.n{padding-right:12px;white-space:nowrap;vertical-align:middle}.grid td.n{text-align:right}
 .grid td.c:first-of-type{padding-left:8px}
 .d{display:block;width:9px;height:9px;border-radius:50%;margin:0 auto;border:1px solid #30363d;box-sizing:border-box}
 .grid td.c{width:19px;min-width:19px;text-align:center}
@@ -443,18 +462,25 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 .pt .lb{display:inline-block;height:6px;background:#3fb950;border-radius:3px;margin-right:8px;vertical-align:middle}
 .pt tr.ko .lb{background:#f85149}
 </style></head><body>
-<h1>keep-alive</h1>
-<p class="sub">since <b>{{.S.Since}}</b> UTC · <b>{{.S.Rounds}}</b> rounds · <b>{{.S.Pings}}</b> pings · <b>{{printf "%.2f" .Pct}}%</b> ok{{if .S.LastRound}} · last round <b>{{.S.LastRound.TS}}</b> UTC, {{.S.LastRound.OK}}/{{.S.LastRound.Total}} in {{.S.LastRound.Took}}{{end}}</p>
-<div class="sw"><span>today {{.G.Day}} · 1 dot per 30 min · click a row for its pings</span><button id="all" type="button">expand all</button></div>
+<div class="hd"><div><h1><img src="/icon.png" alt="">keep-alive</h1>
+<p class="sub">since <b>{{.S.Since}}</b> UTC · <b>{{.S.Rounds}}</b> rounds · <b>{{.S.Pings}}</b> pings · <b>{{printf "%.2f" .Pct}}%</b> ok{{if .S.LastRound}} · last round <b>{{.S.LastRound.TS}}</b> UTC, {{.S.LastRound.OK}}/{{.S.LastRound.Total}} in {{.S.LastRound.Took}}{{end}}</p></div>
+<div class="clock"><div class="t" id="ct"></div><div class="d" id="cd"></div><div class="nx">next run <b id="nx" data-at="{{.Next}}"></b></div></div></div>
 <div class="wrap"><table class="grid">
-<tr><th class="name">app</th><th>uptime</th><th class="n">ok</th><th class="n">avg</th><th class="n">last</th>{{range .G.Labels}}<th class="t">{{.}}</th>{{end}}</tr>
+<tr><th class="name">app</th><th>uptime</th><th class="n">avg</th><th class="n">last</th>{{$now := .G.Now}}{{range $i, $l := .G.Labels}}<th class="t{{if eq $i $now}} now{{end}}">{{$l}}</th>{{end}}</tr>
 {{range .G.Rows}}<tr class="r" data-url="{{.URL}}"><td class="name"><span class="app"><img src="{{.Icon}}" alt="" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='https://icons.duckduckgo.com/ip3/{{.Host}}.ico'}"><a href="{{.URL}}" target="_blank" rel="noreferrer">{{.Host}}</a></span></td>
 <td class="u"><span class="bar{{if lt .Pct 99.0}} bad{{else if lt .Pct 100.0}} warn{{end}}"><i style="width:{{printf "%.1f" .Pct}}%"></i></span>{{printf "%.2f" .Pct}}%</td>
-<td class="n">{{.OK}}/{{.Total}}</td><td class="n">{{.AvgMs}}ms</td><td class="n{{if not (aliveInt .Last)}} fail{{end}}">{{.Last}}</td>
-{{$now := $.G.Now}}{{range $i, $c := .Cells}}<td class="c"><span class="d{{if $c}}{{if aliveInt $c.Status}} ok{{else}} ko{{end}}{{else if eq $i $now}} miss{{end}}{{if eq $i $now}} now{{end}}"{{if $c}} title="{{$c.TS}}  {{$c.Status}}  {{$c.Ms}}ms"{{end}}></span></td>{{end}}
+<td class="n">{{.AvgMs}}ms</td><td class="n{{if not (aliveInt .Last)}} fail{{end}}">{{.Last}}</td>
+{{$now := $.G.Now}}{{range $i, $c := .Cells}}<td class="c{{if eq $i $now}} now{{end}}"><span class="d{{if $c}}{{if aliveInt $c.Status}} ok{{else}} ko{{end}}{{else if eq $i $now}} miss{{end}}{{if eq $i $now}} now{{end}}"{{if $c}} title="{{$c.TS}}  {{$c.Status}}  {{$c.Ms}}ms"{{end}}></span></td>{{end}}
 </tr>{{end}}
 </table></div>
 <script>
+(function(){var ct=document.getElementById("ct"),cd=document.getElementById("cd"),D=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],M=["January","February","March","April","May","June","July","August","September","October","November","December"];
+function tick(){var n=new Date(),h=n.getHours(),p=function(x){return String(x).padStart(2,"0")};
+ct.innerHTML=(h%12||12)+":"+p(n.getMinutes())+":"+p(n.getSeconds())+"<small>"+(h<12?"AM":"PM")+"</small>";
+cd.textContent=D[n.getDay()]+" · "+M[n.getMonth()]+" "+n.getDate()+", "+n.getFullYear();
+var nx=document.getElementById("nx"),at=+nx.dataset.at,left=Math.round((at-n)/1000);
+nx.textContent=!at?"?":left<=0?"running":Math.floor(left/60)+":"+p(left%60)}
+tick();setInterval(tick,1000)})();
 async function openRow(tr){
   if(tr.nextElementSibling&&tr.nextElementSibling.classList.contains("det"))return;
   tr.classList.add("open");
@@ -478,8 +504,6 @@ async function openRow(tr){
 function closeRow(tr){var n=tr.nextElementSibling;if(n&&n.classList.contains("det"))n.remove();tr.classList.remove("open")}
 var rows=document.querySelectorAll("tr.r");
 rows.forEach(function(tr){tr.addEventListener("click",function(e){if(e.target.closest("a"))return;tr.classList.contains("open")?closeRow(tr):openRow(tr)})});
-var all=document.getElementById("all"),allOpen=false;
-all.addEventListener("click",function(){allOpen=!allOpen;all.textContent=allOpen?"collapse all":"expand all";rows.forEach(allOpen?openRow:closeRow)});
 </script>
 </body></html>`))
 
@@ -505,8 +529,14 @@ func serve(addr string) {
 		for i := range g.Rows {
 			g.Rows[i].row = byURL[g.Rows[i].URL]
 		}
+		var next int64
+		if s.LastRound != nil {
+			if t, err := time.Parse("2006-01-02 15:04:05", s.LastRound.TS); err == nil {
+				next = t.Add(interval).UnixMilli()
+			}
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		page.Execute(w, map[string]interface{}{"S": s, "Pct": pct(s.OK, s.Pings), "G": g})
+		page.Execute(w, map[string]interface{}{"S": s, "Pct": pct(s.OK, s.Pings), "G": g, "Next": next})
 	})
 	mux.HandleFunc("/health", func(w http.ResponseWriter, req *http.Request) {
 		mu.RLock()
@@ -523,6 +553,19 @@ func serve(addr string) {
 		}
 		fmt.Fprintf(w, "ok %d/%d at %s\n", lr.OK, lr.Total, lr.TS)
 	})
+	for _, f := range []string{"icon.png", "apple-touch-icon.png", "favicon.png", "manifest.webmanifest"} {
+		name := f
+		mux.HandleFunc("/"+name, func(w http.ResponseWriter, req *http.Request) {
+			b, _ := static.ReadFile("static/" + name)
+			if strings.HasSuffix(name, ".png") {
+				w.Header().Set("Content-Type", "image/png")
+			} else {
+				w.Header().Set("Content-Type", "application/manifest+json")
+			}
+			w.Header().Set("Cache-Control", "public, max-age=86400")
+			w.Write(b)
+		})
+	}
 	mux.HandleFunc("/pings", func(w http.ResponseWriter, req *http.Request) {
 		u := req.URL.Query().Get("url")
 		w.Header().Set("Content-Type", "application/json")
