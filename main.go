@@ -469,7 +469,7 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 .pt tr.ko .lb{background:#f85149}
 </style></head><body>
 <div class="hd"><div><h1><img src="/icon.png" alt="">keep-alive</h1>
-<p class="sub">since <b>{{.S.Since}}</b> UTC · <b>{{.S.Rounds}}</b> rounds · <b>{{.S.Pings}}</b> pings · <b>{{printf "%.2f" .Pct}}%</b> ok{{if .S.LastRound}} · last round <b>{{.S.LastRound.TS}}</b> UTC, {{.S.LastRound.OK}}/{{.S.LastRound.Total}} in {{.S.LastRound.Took}}{{end}}</p></div>
+<p class="sub"><b>{{len .G.Rows}}</b> apps, all pinged every <b>{{.Every}}</b> · <b>{{.S.Rounds}}</b> rounds since <b>{{.S.Since}}</b> UTC = <b>{{.S.Pings}}</b> pings, <b>{{printf "%.2f" .Pct}}%</b> ok{{if .S.LastRound}} · last round: <b>{{.S.LastRound.OK}}/{{.S.LastRound.Total}}</b> up in {{.S.LastRound.Took}}{{end}}</p></div>
 <div class="clock"><div class="t" id="ct"></div><div class="date" id="cd"></div><div class="nx">next run <b id="nx" data-at="{{.Next}}"></b></div></div></div>
 <div class="wrap"><table class="grid">
 <tr><th class="name">app</th><th>uptime</th><th class="n">avg</th><th class="n">last</th>{{$now := .G.Now}}{{range $i, $l := .G.Labels}}<th class="t{{if eq $i $now}} now{{end}}">{{$l}}</th>{{end}}</tr>
@@ -542,7 +542,7 @@ func serve(addr string) {
 			}
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		page.Execute(w, map[string]interface{}{"S": s, "Pct": pct(s.OK, s.Pings), "G": g, "Next": next})
+		page.Execute(w, map[string]interface{}{"S": s, "Pct": pct(s.OK, s.Pings), "G": g, "Next": next, "Every": strings.TrimSuffix(strings.TrimSuffix(interval.String(), "0s"), "0m")})
 	})
 	mux.HandleFunc("/health", func(w http.ResponseWriter, req *http.Request) {
 		mu.RLock()
