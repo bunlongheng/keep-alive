@@ -393,7 +393,7 @@ func textReport() string {
 }
 
 var page = template.Must(template.New("p").Funcs(template.FuncMap{"aliveInt": alive, "idx": func(i, n int) int { return i - n }}).Parse(`<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="60">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>keep-alive</title>
 <link rel="icon" type="image/png" href="/favicon.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#0b0d10">
@@ -440,6 +440,7 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 .days a{color:#c9d1d9;font-size:22px;line-height:1;padding:2px 9px 5px;border:1px solid #30363d;border-radius:6px;background:#161b22}.days a:hover{border-color:#8b949e}
 .days a.off{opacity:.25;pointer-events:none}.days .lbl{width:160px;display:flex;align-items:center;justify-content:center;gap:8px}.days b{color:#e6edf3;font-weight:600;font-size:14px}.days i{font-style:normal;color:#3fb950;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
 .wrap{overflow-x:clip}
+.days,.wrap,.clock{transition:opacity .18s ease}.swap .days,.swap .wrap,.swap .clock .date,.swap .clock .nx{opacity:0}
 @media (max-width:1380px){.grid th.t,.grid td.c{display:none}}
 .grid{border-collapse:separate;border-spacing:0;width:100%;max-width:none}
 .grid th{border:0;padding:0 0 6px}
@@ -488,13 +489,13 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 </tr>{{end}}
 </table></div>
 <script>
-(function(){var ct=document.getElementById("ct"),cd=document.getElementById("cd"),D=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],M=["January","February","March","April","May","June","July","August","September","October","November","December"];
-function tick(){var n=new Date(),h=n.getHours(),p=function(x){return String(x).padStart(2,"0")};
+(function(){var D=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],M=["January","February","March","April","May","June","July","August","September","October","November","December"];
+function tick(){var n=new Date(),h=n.getHours(),p=function(x){return String(x).padStart(2,"0")},ct=document.getElementById("ct"),cd=document.getElementById("cd");
 ct.innerHTML=(h%12||12)+":"+p(n.getMinutes())+":"+p(n.getSeconds())+"<small>"+(h<12?"AM":"PM")+"</small>";
 if(!cd)return;cd.textContent=D[n.getDay()]+" · "+M[n.getMonth()]+" "+n.getDate()+", "+n.getFullYear();
 var nx=document.getElementById("nx"),at=+nx.dataset.at,left=Math.round((at-n)/1000);
 nx.textContent=!at?"?":left<=0?"running":Math.floor(left/60)+":"+p(left%60)}
-tick();setInterval(tick,1000)})();
+window.tick=tick;tick();setInterval(tick,1000)})();
 async function openRow(tr){
   if(tr.nextElementSibling&&tr.nextElementSibling.classList.contains("det"))return;
   tr.classList.add("open");
@@ -515,10 +516,31 @@ async function openRow(tr){
     +'</table></div>';
   det.querySelector(".in").innerHTML=h;
 }
-document.addEventListener("keydown",function(e){var a=e.key==="ArrowLeft"?document.getElementById("dp"):e.key==="ArrowRight"?document.getElementById("dn"):null;if(a&&!a.classList.contains("off"))location.href=a.href});
+var swapping=false;
+async function goDay(href,silent){
+  if(swapping)return;swapping=true;
+  var open=[].map.call(document.querySelectorAll("tr.r.open"),function(t){return t.dataset.url});
+  if(!silent){document.body.classList.add("swap");var wait=new Promise(function(r){setTimeout(r,180)})}
+  try{
+    var h=await (await fetch(href,{headers:{Accept:"text/html"}})).text();
+    if(!silent)await wait;
+    var d=new DOMParser().parseFromString(h,"text/html");
+    [".clock",".days",".wrap"].forEach(function(s){document.querySelector(s).replaceWith(d.querySelector(s))});
+    tick();if(!silent)history.pushState(null,"",href);
+    open.forEach(function(u){var tr=document.querySelector('tr.r[data-url="'+u+'"]');if(tr)openRow(tr)});
+  }finally{
+    void document.body.offsetWidth;document.body.classList.remove("swap");swapping=false;
+  }
+}
+function arrow(id){var a=document.getElementById(id);if(a&&!a.classList.contains("off"))goDay(a.getAttribute("href"))}
+document.addEventListener("keydown",function(e){if(e.key==="ArrowLeft")arrow("dp");else if(e.key==="ArrowRight")arrow("dn")});
+document.addEventListener("click",function(e){
+  var a=e.target.closest("#dp,#dn");if(a){e.preventDefault();arrow(a.id);return}
+  var tr=e.target.closest("tr.r");if(!tr||e.target.closest("a"))return;
+  tr.classList.contains("open")?closeRow(tr):openRow(tr)});
+window.addEventListener("popstate",function(){goDay(location.href,true)});
+setInterval(function(){goDay(location.href,true)},60000);
 function closeRow(tr){var n=tr.nextElementSibling;if(n&&n.classList.contains("det"))n.remove();tr.classList.remove("open")}
-var rows=document.querySelectorAll("tr.r");
-rows.forEach(function(tr){tr.addEventListener("click",function(e){if(e.target.closest("a"))return;tr.classList.contains("open")?closeRow(tr):openRow(tr)})});
 </script>
 </body></html>`))
 
