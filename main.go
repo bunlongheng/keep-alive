@@ -438,7 +438,7 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 .fail{color:#f85149}
 .days{display:flex;align-items:center;gap:10px;margin:6px 0 8px}
 .days a{color:#c9d1d9;font-size:22px;line-height:1;padding:2px 9px 5px;border:1px solid #30363d;border-radius:6px;background:#161b22}.days a:hover{border-color:#8b949e}
-.days a.off{opacity:.25;pointer-events:none}.days b{color:#e6edf3;font-weight:600;font-size:14px;min-width:96px;text-align:center}.days i{font-style:normal;color:#3fb950;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.days a.off{opacity:.25;pointer-events:none}.days .lbl{width:160px;display:flex;align-items:center;justify-content:center;gap:8px}.days b{color:#e6edf3;font-weight:600;font-size:14px}.days i{font-style:normal;color:#3fb950;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
 .wrap{overflow-x:clip}
 @media (max-width:1380px){.grid th.t,.grid td.c{display:none}}
 .grid{border-collapse:separate;border-spacing:0;width:100%;max-width:none}
@@ -478,7 +478,7 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 <div class="hd"><div><h1><img src="/icon.png" alt="">keep-alive</h1>
 <p class="sub"><b>{{len .G.Rows}}</b> apps, all pinged every <b>{{.Every}}</b> · <b>{{.S.Rounds}}</b> rounds since <b>{{.S.Since}}</b> UTC = <b>{{.S.Pings}}</b> pings, <b>{{printf "%.2f" .Pct}}%</b> ok{{if .S.LastRound}} · last round: {{if .Down}}<b class="bad">{{.Down}} down</b>{{else}}<b>all up</b>{{end}} in {{.S.LastRound.Took}}{{end}}</p></div>
 <div class="clock"><div class="t" id="ct"></div>{{if .G.Today}}<div class="date" id="cd"></div><div class="nx">next run <b id="nx" data-at="{{.Next}}"></b></div>{{else}}<div class="date past">{{.G.Long}}</div>{{end}}</div></div>
-<div class="days"><a id="dp" href="?day={{.G.Prev}}"{{if not .G.Prev}} class="off"{{end}}>&#8249;</a><b>{{.G.Day}}</b>{{if .G.Today}}<i>today</i>{{end}}<a id="dn" href="?day={{.G.Next}}"{{if not .G.Next}} class="off"{{end}}>&#8250;</a></div>
+<div class="days"><a id="dp" href="?day={{.G.Prev}}"{{if not .G.Prev}} class="off"{{end}}>&#8249;</a><span class="lbl"><b>{{.G.Day}}</b>{{if .G.Today}}<i>today</i>{{end}}</span><a id="dn" href="?day={{.G.Next}}"{{if not .G.Next}} class="off"{{end}}>&#8250;</a></div>
 <div class="wrap"><table class="grid">
 <tr><th class="name">app</th><th>uptime</th><th class="n">avg</th><th class="n">last</th>{{$now := .G.Now}}{{range $i, $l := .G.Labels}}<th class="t{{if eq $i $now}} now{{end}}">{{$l}}</th>{{end}}</tr>
 {{range .G.Rows}}<tr class="r" data-url="{{.URL}}"><td class="name"><span class="app"><img src="{{.Icon}}" alt="" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='https://icons.duckduckgo.com/ip3/{{.Host}}.ico'}"><a href="{{.URL}}" target="_blank" rel="noreferrer">{{.Host}}</a></span></td>
