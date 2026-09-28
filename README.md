@@ -17,6 +17,7 @@ Put your URLs in a text file and run 1 static binary. Every 5 minutes it hits al
 - **Never stops** - the ping loop runs on its own; the page, the TUI and the JSON files only read what it wrote.
 - **All-time stats** - `stats.json` keeps pings, ok count, average ms and last failure per URL, and survives restarts.
 - **3 ways to look** - browser page on `-listen`, `make tui` in a terminal over ssh, or `curl` the same address for plain text.
+- **Day carousel** - arrows or the left and right keys page back through every day still in the log; each row expands to its pings, failures first.
 - **Health endpoint** - `/health` answers 503 when no round has run in 3 intervals, so a monitor can watch the watcher.
 - **Add to Home Screen** - manifest and touch icon included, opens full screen on a phone.
 

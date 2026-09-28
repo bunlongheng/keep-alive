@@ -34,16 +34,30 @@ type grid struct {
 	Labels []string // 1 per slot: 12a, 12:30a, 1a ...
 	Now    int      // index of the current slot
 	Rows   []gridRow
-	Day    string
+	Day    string // "Sun Sep 27"
+	Prev   string // ?day= value of the previous day, "" when the log has none
+	Next   string // ?day= value of the next day, "" when Day is today
+	Today  bool
 }
 
 // buildGrid buckets today's log lines (local midnight to midnight) into 30 minute slots.
 // The first ping in a slot is what the cell shows, matching the admin panel.
-func buildGrid(logPath, iconsPath string, urls []string) grid {
+// buildGrid renders 1 local day; day is any time on that day.
+func buildGrid(logPath, iconsPath string, urls []string, day time.Time) grid {
 	now := time.Now()
-	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+	start := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.Local)
+	if start.After(today) {
+		start = today
+	}
 	end := start.Add(slotCount * slotLen)
-	g := grid{Day: now.Format("Mon Jan 2"), Now: int(now.Sub(start) / slotLen)}
+	g := grid{Day: start.Format("Mon Jan 2"), Now: -1, Today: start.Equal(today)}
+	if g.Today {
+		g.Now = int(now.Sub(start) / slotLen)
+	} else {
+		g.Next = start.Add(24 * time.Hour).Format("2006-01-02")
+	}
+	var first time.Time
 	for i := 0; i < slotCount; i++ {
 		t := start.Add(time.Duration(i) * slotLen)
 		h := t.Hour() % 12
@@ -81,6 +95,9 @@ func buildGrid(logPath, iconsPath string, urls []string) grid {
 			continue
 		}
 		t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), 0, time.UTC).Local()
+		if first.IsZero() || t.Before(first) {
+			first = t
+		}
 		if t.Before(start) || !t.Before(end) {
 			continue
 		}
@@ -95,6 +112,9 @@ func buildGrid(logPath, iconsPath string, urls []string) grid {
 		code, _ := strconv.Atoi(fs[2])
 		ms, _ := strconv.ParseInt(strings.TrimSuffix(fs[4:][0], "ms"), 10, 64)
 		g.Rows[i].Cells[slot] = &cell{Status: code, TS: t.Format("15:04"), Ms: ms}
+	}
+	if !first.IsZero() && first.Before(start) {
+		g.Prev = start.Add(-24 * time.Hour).Format("2006-01-02")
 	}
 	return g
 }
