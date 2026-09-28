@@ -477,7 +477,7 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 </style></head><body>
 <div class="hd"><div><h1><img src="/icon.png" alt="">keep-alive</h1>
 <p class="sub"><b>{{len .G.Rows}}</b> apps, all pinged every <b>{{.Every}}</b> · <b>{{.S.Rounds}}</b> rounds since <b>{{.S.Since}}</b> UTC = <b>{{.S.Pings}}</b> pings, <b>{{printf "%.2f" .Pct}}%</b> ok{{if .S.LastRound}} · last round: {{if .Down}}<b class="bad">{{.Down}} down</b>{{else}}<b>all up</b>{{end}} in {{.S.LastRound.Took}}{{end}}</p></div>
-<div class="clock"><div class="t" id="ct"></div>{{if .G.Today}}<div class="date" id="cd"></div><div class="nx">next run <b id="nx" data-at="{{.Next}}"></b></div>{{else}}<div class="date past">{{.G.Long}}</div>{{end}}</div></div>
+<div class="clock"><div class="t" id="ct"></div>{{if .G.Today}}<div class="date" id="cd"></div><div class="nx">next run <b id="nx" data-at="{{.Next}}"></b></div>{{else}}<div class="date past">{{.G.Long}}</div><div class="nx">&nbsp;</div>{{end}}</div></div>
 <div class="days"><a id="dp" href="?day={{.G.Prev}}"{{if not .G.Prev}} class="off"{{end}}>&#8249;</a><span class="lbl"><b>{{.G.Day}}</b>{{if .G.Today}}<i>today</i>{{end}}</span><a id="dn" href="?day={{.G.Next}}"{{if not .G.Next}} class="off"{{end}}>&#8250;</a></div>
 <div class="wrap"><table class="grid">
 <tr><th class="name">app</th><th>uptime</th><th class="n">avg</th><th class="n">last</th>{{$now := .G.Now}}{{range $i, $l := .G.Labels}}<th class="t{{if eq $i $now}} now{{end}}">{{$l}}</th>{{end}}</tr>
