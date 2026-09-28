@@ -134,18 +134,20 @@ func iconOverrides(path string) map[string]string {
 	return out
 }
 
+// slowMs is the latency at which an alive ping is shown amber.
+const slowMs = 2000
+
 type pingRec struct {
-	TS     string `json:"ts"` // local HH:MM:SS
+	TS     string `json:"ts"` // local "Sep 27 05:30:35"
 	Slot   string `json:"slot"`
 	Status int    `json:"status"`
 	Ms     int64  `json:"ms"`
 	OK     bool   `json:"ok"`
+	Slow   bool   `json:"slow"` // alive but >= slowMs
 }
 
-// pingsToday returns every ping of 1 URL since local midnight, oldest first.
-func pingsToday(logPath, u string) []pingRec {
-	now := time.Now()
-	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+// pingsFor returns every ping of 1 URL still in the log, oldest first.
+func pingsFor(logPath, u string) []pingRec {
 	out := []pingRec{}
 	f, err := os.Open(logPath)
 	if err != nil {
@@ -163,16 +165,13 @@ func pingsToday(logPath, u string) []pingRec {
 			continue
 		}
 		t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), 0, time.UTC).Local()
-		if t.Before(start) {
-			continue
-		}
 		code, _ := strconv.Atoi(fs[2])
 		var ms int64
 		if len(fs) > 4 {
 			ms, _ = strconv.ParseInt(strings.TrimSuffix(fs[4], "ms"), 10, 64)
 		}
 		slot := t.Truncate(slotLen)
-		out = append(out, pingRec{TS: t.Format("15:04:05"), Slot: slot.Format("3:04pm"), Status: code, Ms: ms, OK: alive(code)})
+		out = append(out, pingRec{TS: t.Format("Jan 2 15:04:05"), Slot: slot.Format("3:04pm"), Status: code, Ms: ms, OK: alive(code), Slow: alive(code) && ms >= slowMs})
 	}
 	return out
 }

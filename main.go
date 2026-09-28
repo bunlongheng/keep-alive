@@ -460,13 +460,14 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 .det td{padding:0;background:#0d1015;border-bottom:1px solid #21262d}
 .det .in{padding:14px 16px 16px;position:sticky;left:0;max-width:calc(100vw - 40px);box-sizing:border-box}
 .det .sum{color:#8b949e;margin-bottom:12px;font-size:13px}.det .sum b{color:#c9d1d9;font-weight:600}
-.det .sum b.ko{color:#f85149}
+.det .sum b.ko{color:#f85149}.det .sum b.warn{color:#d29922}
 .pt{max-height:420px;overflow-y:auto;max-width:560px;border:1px solid #21262d;border-radius:6px}
 .pt table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
 .pt th{position:sticky;top:0;background:#161b22;color:#8b949e;font-weight:500;text-align:left;padding:7px 12px;border-bottom:1px solid #30363d}
 .pt td{padding:6px 12px;border-bottom:1px solid #161b22;white-space:nowrap;background:transparent}
 .pt td.ts{color:#e6edf3;font-weight:600}.pt td.sl{color:#6e7681}.pt td.st{color:#7ee787}.pt td.ms{text-align:right}
-.pt tr.ko td.st,.pt tr.ko td.ts{color:#f85149}
+.pt tr.ko td.st,.pt tr.ko td.ts{color:#f85149}.pt tr.ko .lb{background:#f85149}
+.pt tr.warn td.st,.pt tr.warn td.ts{color:#d29922}.pt tr.warn .lb{background:#d29922}
 .pt .lb{display:inline-block;height:6px;background:#3fb950;border-radius:3px;margin-right:8px;vertical-align:middle}
 .pt tr.ko .lb{background:#f85149}
 </style></head><body>
@@ -496,16 +497,16 @@ async function openRow(tr){
   det.innerHTML='<td colspan="'+tr.children.length+'"><div class="in"><div class="sum">loading</div></div></td>';
   tr.after(det);
   var r=await fetch("/pings?url="+encodeURIComponent(tr.dataset.url));var d=await r.json();
-  var ok=d.pings.filter(function(p){return p.ok}).length,n=d.pings.length;
+  var n=d.pings.length,fails=d.pings.filter(function(p){return !p.ok}),slow=d.pings.filter(function(p){return p.slow}),good=n-fails.length-slow.length;
   var ms=d.pings.map(function(p){return p.ms});
   var avg=n?Math.round(ms.reduce(function(a,b){return a+b},0)/n):0;
-  var fails=d.pings.filter(function(p){return !p.ok});
-  var h='<div class="sum">today <b>'+n+'</b> pings · <b'+(fails.length?' class="ko"':'')+'>'+ok+'/'+n+' ok</b> · avg <b>'+avg+'ms</b> · min <b>'+(n?Math.min.apply(null,ms):0)+'ms</b> · max <b>'+(n?Math.max.apply(null,ms):0)+'ms</b>'
-    +(fails.length?' · failed at <b class="ko">'+fails.map(function(p){return p.ts+" ("+p.status+")"}).join(", ")+'</b>':'')+'</div>';
+  var h='<div class="sum"><b>'+n+'</b> pings'+(n?' since <b>'+d.pings[0].ts+'</b>':'')+' · <b class="'+(fails.length?'ko':'')+'">'+fails.length+' failed</b> · <b class="'+(slow.length?'warn':'')+'">'+slow.length+' slow</b> · <b>'+good+' ok</b> · avg <b>'+avg+'ms</b></div>';
   var mx=n?Math.max.apply(null,ms):1;
+  var rank=function(p){return p.ok?(p.slow?1:2):0};
+  var rows=d.pings.slice().reverse().sort(function(a,b){return rank(a)-rank(b)});
   h+='<div class="pt"><table><tr><th>time</th><th>slot</th><th>status</th><th style="text-align:right">latency</th></tr>'
-    +d.pings.slice().reverse().map(function(p){
-      return '<tr'+(p.ok?'':' class="ko"')+'><td class="ts">'+p.ts+'</td><td class="sl">'+p.slot+'</td><td class="st">'+p.status+'</td><td class="ms"><span class="lb" style="width:'+Math.max(4,Math.round(90*p.ms/mx))+'px"></span>'+p.ms+'ms</td></tr>'}).join("")
+    +rows.map(function(p){
+      return '<tr class="'+(p.ok?(p.slow?'warn':''):'ko')+'"><td class="ts">'+p.ts+'</td><td class="sl">'+p.slot+'</td><td class="st">'+p.status+'</td><td class="ms"><span class="lb" style="width:'+Math.max(4,Math.round(90*p.ms/mx))+'px"></span>'+p.ms+'ms</td></tr>'}).join("")
     +'</table></div>';
   det.querySelector(".in").innerHTML=h;
 }
@@ -581,7 +582,7 @@ func serve(addr string) {
 	mux.HandleFunc("/pings", func(w http.ResponseWriter, req *http.Request) {
 		u := req.URL.Query().Get("url")
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"url": u, "pings": pingsToday(logFile, u)})
+		json.NewEncoder(w).Encode(map[string]interface{}{"url": u, "pings": pingsFor(logFile, u)})
 	})
 	mux.HandleFunc("/stats.json", func(w http.ResponseWriter, req *http.Request) {
 		mu.RLock()
