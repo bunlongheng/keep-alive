@@ -35,6 +35,7 @@ type grid struct {
 	Now    int      // index of the current slot
 	Rows   []gridRow
 	Day    string // "Sun Sep 27"
+	Long   string // "Sunday · September 27, 2026"
 	Prev   string // ?day= value of the previous day, "" when the log has none
 	Next   string // ?day= value of the next day, "" when Day is today
 	Today  bool
@@ -51,7 +52,7 @@ func buildGrid(logPath, iconsPath string, urls []string, day time.Time) grid {
 		start = today
 	}
 	end := start.Add(slotCount * slotLen)
-	g := grid{Day: start.Format("Mon Jan 2"), Now: -1, Today: start.Equal(today)}
+	g := grid{Day: start.Format("Mon Jan 2"), Long: start.Format("Monday · January 2, 2006"), Now: -1, Today: start.Equal(today)}
 	if g.Today {
 		g.Now = int(now.Sub(start) / slotLen)
 	} else {

@@ -411,6 +411,7 @@ h2{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
 .clock .t{font-size:52px;font-weight:700;color:#e6edf3;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .clock .t small{font-size:20px;font-weight:500;color:#8b949e;margin-left:6px}
 .clock .date{font-size:16px;color:#7ee787;letter-spacing:.12em;text-transform:uppercase;margin-top:10px}
+.clock .date.past{color:#d29922;text-shadow:0 0 12px rgba(210,153,34,.45)}
 .clock .nx{font-size:12px;color:#6e7681;margin-top:10px;letter-spacing:.06em}.clock .nx b{color:#58a6ff;font-weight:600;font-variant-numeric:tabular-nums;text-shadow:0 0 12px rgba(88,166,255,.6)}
 .grid th.t.now{color:#7ee787;text-shadow:0 0 10px rgba(63,185,80,.8)}
 .grid td.c.now{background:linear-gradient(180deg,rgba(63,185,80,.14),rgba(63,185,80,.06));box-shadow:inset 0 0 14px rgba(63,185,80,.18)}
@@ -476,7 +477,7 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 </style></head><body>
 <div class="hd"><div><h1><img src="/icon.png" alt="">keep-alive</h1>
 <p class="sub"><b>{{len .G.Rows}}</b> apps, all pinged every <b>{{.Every}}</b> · <b>{{.S.Rounds}}</b> rounds since <b>{{.S.Since}}</b> UTC = <b>{{.S.Pings}}</b> pings, <b>{{printf "%.2f" .Pct}}%</b> ok{{if .S.LastRound}} · last round: {{if .Down}}<b class="bad">{{.Down}} down</b>{{else}}<b>all up</b>{{end}} in {{.S.LastRound.Took}}{{end}}</p></div>
-<div class="clock"><div class="t" id="ct"></div><div class="date" id="cd"></div><div class="nx">next run <b id="nx" data-at="{{.Next}}"></b></div></div></div>
+<div class="clock"><div class="t" id="ct"></div>{{if .G.Today}}<div class="date" id="cd"></div><div class="nx">next run <b id="nx" data-at="{{.Next}}"></b></div>{{else}}<div class="date past">{{.G.Long}}</div>{{end}}</div></div>
 <div class="days"><a id="dp" href="?day={{.G.Prev}}"{{if not .G.Prev}} class="off"{{end}}>&#8249;</a><b>{{.G.Day}}</b>{{if .G.Today}}<i>today</i>{{end}}<a id="dn" href="?day={{.G.Next}}"{{if not .G.Next}} class="off"{{end}}>&#8250;</a></div>
 <div class="wrap"><table class="grid">
 <tr><th class="name">app</th><th>uptime</th><th class="n">avg</th><th class="n">last</th>{{$now := .G.Now}}{{range $i, $l := .G.Labels}}<th class="t{{if eq $i $now}} now{{end}}">{{$l}}</th>{{end}}</tr>
@@ -490,7 +491,7 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 (function(){var ct=document.getElementById("ct"),cd=document.getElementById("cd"),D=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],M=["January","February","March","April","May","June","July","August","September","October","November","December"];
 function tick(){var n=new Date(),h=n.getHours(),p=function(x){return String(x).padStart(2,"0")};
 ct.innerHTML=(h%12||12)+":"+p(n.getMinutes())+":"+p(n.getSeconds())+"<small>"+(h<12?"AM":"PM")+"</small>";
-cd.textContent=D[n.getDay()]+" · "+M[n.getMonth()]+" "+n.getDate()+", "+n.getFullYear();
+if(!cd)return;cd.textContent=D[n.getDay()]+" · "+M[n.getMonth()]+" "+n.getDate()+", "+n.getFullYear();
 var nx=document.getElementById("nx"),at=+nx.dataset.at,left=Math.round((at-n)/1000);
 nx.textContent=!at?"?":left<=0?"running":Math.floor(left/60)+":"+p(left%60)}
 tick();setInterval(tick,1000)})();
