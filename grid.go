@@ -10,11 +10,16 @@ import (
 	"time"
 )
 
-const (
-	slotLen   = 30 * time.Minute
-	slotCount = 48 // 24 hours
-	iconBase  = "https://bunlongheng.com/app-icons/"
-)
+const iconBase = "https://bunlongheng.com/app-icons/"
+
+// slotSize is the grid column width: 1 hour once rounds are an hour or more apart,
+// 30 minutes below that. Returns the width and how many columns fill a day.
+func slotSize() (time.Duration, int) {
+	if getInterval() >= time.Hour {
+		return time.Hour, 24
+	}
+	return 30 * time.Minute, 48
+}
 
 type cell struct {
 	Status int
@@ -23,15 +28,16 @@ type cell struct {
 }
 
 type gridRow struct {
-	URL   string
-	Host  string
-	Icon  string
-	Cells []*cell // 1 per slot, nil = no ping in that slot
-	row           // all-time numbers for the same URL
+	URL    string
+	Host   string
+	Icon   string
+	Cells  []*cell // 1 per slot, nil = no ping in that slot
+	Paused bool    // in settings.paused: shown, not pinged
+	row            // all-time numbers for the same URL
 }
 
 type grid struct {
-	Labels []string // 1 per slot: 12a, 12:30a, 1a ...
+	Labels []string // 1 per slot: 12a, 1a, 2a ... (12:30a between them on a sub-hour interval)
 	Now    int      // index of the current slot
 	Rows   []gridRow
 	Day    string // "Sun Sep 27"
@@ -41,17 +47,18 @@ type grid struct {
 	Today  bool
 }
 
-// buildGrid buckets today's log lines (local midnight to midnight) into 30 minute slots.
+// buildGrid buckets today's log lines (local midnight to midnight) into slotSize columns.
 // The first ping in a slot is what the cell shows, matching the admin panel.
 // buildGrid renders 1 local day; day is any time on that day.
 func buildGrid(logPath, iconsPath string, urls []string, day time.Time) grid {
+	slotLen, slotCount := slotSize()
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
 	start := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.Local)
 	if start.After(today) {
 		start = today
 	}
-	end := start.Add(slotCount * slotLen)
+	end := start.Add(time.Duration(slotCount) * slotLen)
 	g := grid{Day: start.Format("Mon Jan 2"), Long: start.Format("Monday · January 2, 2006"), Now: -1, Today: start.Equal(today)}
 	if g.Today {
 		g.Now = int(now.Sub(start) / slotLen)
@@ -72,7 +79,7 @@ func buildGrid(logPath, iconsPath string, urls []string, day time.Time) grid {
 		if t.Minute() == 0 {
 			g.Labels = append(g.Labels, fmt.Sprintf("%d%s", h, ap))
 		} else {
-			g.Labels = append(g.Labels, fmt.Sprintf("%d:30%s", h, ap))
+			g.Labels = append(g.Labels, fmt.Sprintf("%d:%02d%s", h, t.Minute(), ap))
 		}
 	}
 	idx := map[string]int{}
@@ -170,6 +177,7 @@ type pingRec struct {
 // pingsFor returns every ping of 1 URL still in the log, oldest first.
 func pingsFor(logPath, u string) []pingRec {
 	out := []pingRec{}
+	slotLen, _ := slotSize()
 	f, err := os.Open(logPath)
 	if err != nil {
 		return out
