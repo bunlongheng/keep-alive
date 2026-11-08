@@ -34,6 +34,10 @@ make run                       # 1 round, prints a summary and any failures
 
 Open http://localhost:8787. Click any row for every ping of that app today.
 
+Settings live on the page and persist to `settings.json` (`-settings`):
+- click an app row, flip the **ping this app** switch to pause it; paused apps stay in the grid, dimmed, and are skipped every round
+- click **every** or **quiet** in the header to change the interval (`1m` to `24h`) and the quiet hours (`23-6` = no rounds 11pm to 6am Eastern, `off` to disable)
+
 ```
 ./keep-alive -h    # -urls -workers -interval -timeout -retries -log -status -stats -keep -listen -once -tui -report
 ```

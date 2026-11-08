@@ -81,6 +81,7 @@ func main() {
 	flag.StringVar(&logFile, "log", "keep-alive.log", "append log: TS  STATUS  URL  MS")
 	logPath := &logFile
 	flag.StringVar(&iconsPath, "icons", "icons.txt", "host to icon-name overrides for the html page")
+	flag.StringVar(&settingsPath, "settings", "settings.json", "runtime settings from the page: interval, quiet hours, paused urls")
 	statusPath := flag.String("status", "status.json", "latest round as JSON")
 	statsPath := flag.String("stats", "stats.json", "all-time totals as JSON")
 	keepLines := flag.Int("keep", 25000, "trim the log to this many lines after each round")
@@ -91,6 +92,7 @@ func main() {
 	flag.Parse()
 
 	loadStats(*statsPath)
+	loadSettings()
 	if *report {
 		fmt.Print(textReport())
 		return
@@ -117,12 +119,18 @@ func main() {
 	}
 
 	for {
+		// Quiet hours: no round at all, sleep until they end (settings changes wake us).
+		for q := quietUntil(time.Now()); !q.IsZero() && !*once; q = quietUntil(time.Now()) {
+			fmt.Printf("quiet until %s, no rounds\n", q.In(eastern).Format("15:04 MST"))
+			waitUntil(q)
+		}
 		urls, err := readURLs(*urlsPath)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "urls:", err)
 			os.Exit(1)
 		}
-		r := runRound(client, urls, *workers, *retries)
+		started := time.Now()
+		r := runRound(client, activeURLs(urls), *workers, *retries)
 		record(r)
 		if err := appendLog(*logPath, r, *keepLines); err != nil {
 			fmt.Fprintln(os.Stderr, "log:", err)
@@ -145,7 +153,9 @@ func main() {
 		if *once {
 			return
 		}
-		time.Sleep(interval)
+		// Sleep until the next round; a settings change re-computes the target.
+		for waitUntil(started.Add(getInterval())) {
+		}
 	}
 }
 
@@ -475,20 +485,38 @@ a{color:#c9d1d9;text-decoration:none}a:hover{color:#fff}
 .pt tr.warn td.st,.pt tr.warn td.ts{color:#d29922}.pt tr.warn .lb{background:#d29922}
 .pt .lb{display:inline-block;height:6px;background:#3fb950;border-radius:3px;margin-right:8px;vertical-align:middle}
 .pt tr.ko .lb{background:#f85149}
+.sub b.warn{color:#d29922}.sub .ed{cursor:pointer;border-bottom:1px dashed #8b949e}.sub .ed:hover{color:#fff}.sub .hint{color:#6e7681;font-size:11px}
+.cfg{display:none;align-items:center;gap:14px;margin:0 0 20px;padding:10px 14px;border:1px solid #30363d;border-radius:6px;background:#161b22;flex-basis:100%}
+.cfg.on{display:flex}.cfg label{color:#8b949e}.cfg input{background:#0b0d10;color:#e6edf3;border:1px solid #30363d;border-radius:4px;padding:4px 8px;font:inherit;margin-left:6px}
+.cfg button,.sw button{background:#238636;color:#fff;border:0;border-radius:4px;padding:5px 12px;font:inherit;cursor:pointer}.cfg .msg{color:#8b949e}.cfg .msg b{color:#e6edf3;font-weight:600}.cfg .msg i{font-style:normal;color:#6e7681;margin:0 6px}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(16px);background:#161b22;color:#e6edf3;border:1px solid #3fb950;border-radius:8px;padding:10px 18px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:9;box-shadow:0 8px 24px rgba(0,0,0,.5);white-space:nowrap}.toast.on{opacity:1;transform:translateX(-50%)}.toast.bad{border-color:#f85149;color:#f85149}
+.grid tr.off td{filter:grayscale(1);opacity:.35}.grid tr.off.open td,.grid tr.off:hover td{opacity:.55}
+.sw{display:flex;align-items:center;gap:10px;margin-bottom:14px;color:#8b949e;cursor:pointer;width:max-content}
+.sw input{appearance:none;width:36px;height:20px;border-radius:10px;background:#30363d;position:relative;margin:0;cursor:pointer;transition:background .2s;flex:none}
+.sw input:before{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#c9d1d9;transition:left .2s}
+.sw input:checked{background:#3fb950}.sw input:checked:before{left:18px}.sw b{color:#e6edf3;font-weight:600}
 </style></head><body>
 <div class="hd"><div><h1><img src="/icon.png" alt="">keep-alive</h1>
-<p class="sub"><b>{{len .G.Rows}}</b> apps, all pinged every <b>{{.Every}}</b> · <b>{{.S.Rounds}}</b> rounds since <b>{{.S.Since}}</b> UTC = <b>{{.S.Pings}}</b> pings, <b>{{printf "%.2f" .Pct}}%</b> ok{{if .S.LastRound}} · last round: {{if .Down}}<b class="bad">{{.Down}} down</b>{{else}}<b>all up</b>{{end}} in {{.S.LastRound.Took}}{{end}}</p></div>
+<p class="sub"><b>{{len .G.Rows}}</b> apps{{if .Paused}}, <b class="warn">{{.Paused}} paused</b>{{end}} · every <b class="ed" id="ev">{{.Every}}</b> · quiet <b class="ed" id="qt">{{.Quiet}}</b> <span class="hint">(ET, click to change)</span> · <b>{{.S.Rounds}}</b> rounds since <b>{{.S.Since}}</b> UTC = <b>{{.S.Pings}}</b> pings, <b>{{printf "%.2f" .Pct}}%</b> ok{{if .S.LastRound}} · last round: {{if .Down}}<b class="bad">{{.Down}} down</b>{{else}}<b>all up</b>{{end}} in {{.S.LastRound.Took}}{{end}}</p></div>
+<form class="cfg" id="cfg" data-total="{{len .G.Rows}}" data-paused="{{.Paused}}"><label>every <input name="interval" value="{{.Every}}" size="5" placeholder="1h"></label><label>quiet <input name="quiet" value="{{.Quiet}}" size="6" placeholder="23-6 or off"></label><button>apply</button><span class="msg" id="est"></span></form>
 <div class="clock"><div class="t" id="ct"></div>{{if .G.Today}}<div class="date" id="cd"></div><div class="nx">next run <b id="nx" data-at="{{.Next}}"></b></div>{{else}}<div class="date past">{{.G.Long}}</div><div class="nx">&nbsp;</div>{{end}}</div></div>
 <div class="days"><a id="dp" href="?day={{.G.Prev}}"{{if not .G.Prev}} class="off"{{end}}>&#8249;</a><span class="lbl"><b>{{.G.Day}}</b>{{if .G.Today}}<i>today</i>{{end}}</span><a id="dn" href="?day={{.G.Next}}"{{if not .G.Next}} class="off"{{end}}>&#8250;</a></div>
 <div class="wrap"><table class="grid">
 <tr><th class="name">app</th><th>uptime</th><th class="n">avg</th><th class="n">last</th>{{$now := .G.Now}}{{range $i, $l := .G.Labels}}<th class="t{{if eq $i $now}} now{{end}}">{{$l}}</th>{{end}}</tr>
-{{range .G.Rows}}<tr class="r" data-url="{{.URL}}"><td class="name"><span class="app"><img src="{{.Icon}}" alt="" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='https://icons.duckduckgo.com/ip3/{{.Host}}.ico'}"><a href="{{.URL}}" target="_blank" rel="noreferrer">{{.Host}}</a></span></td>
+{{range .G.Rows}}{{$off := .Paused}}<tr class="r{{if $off}} off{{end}}" data-url="{{.URL}}" data-off="{{if $off}}1{{end}}"><td class="name"><span class="app"><img src="{{.Icon}}" alt="" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='https://icons.duckduckgo.com/ip3/{{.Host}}.ico'}"><a href="{{.URL}}" target="_blank" rel="noreferrer">{{.Host}}</a></span></td>
 <td class="u"><svg class="dn{{if lt .Pct 99.0}} bad{{else if lt .Pct 100.0}} warn{{end}}" viewBox="0 0 36 36"><circle class="t" cx="18" cy="18" r="15"/><circle class="v" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="{{printf "%.2f" .Pct}} 100"/><text x="18" y="21">{{if ge .Pct 100.0}}100{{else}}{{printf "%.1f" .Pct}}{{end}}%</text></svg></td>
 <td class="n">{{.AvgMs}}ms</td><td class="n{{if not (aliveInt .Last)}} fail{{end}}">{{.Last}}</td>
-{{$now := $.G.Now}}{{range $i, $c := .Cells}}<td class="c{{if eq $i $now}} now{{end}}"><span class="d{{if $c}}{{if aliveInt $c.Status}} ok{{else}} ko{{end}}{{else if eq $i $now}} miss{{end}}{{if eq $i $now}} now{{end}}"{{if $c}} title="{{$c.TS}}  {{$c.Status}}  {{$c.Ms}}ms"{{end}}></span></td>{{end}}
+{{$now := $.G.Now}}{{range $i, $c := .Cells}}<td class="c{{if eq $i $now}} now{{end}}"><span class="d{{if $c}}{{if aliveInt $c.Status}} ok{{else}} ko{{end}}{{else if and (eq $i $now) (not $off)}} miss{{end}}{{if eq $i $now}} now{{end}}"{{if $c}} title="{{$c.TS}}  {{$c.Status}}  {{$c.Ms}}ms"{{end}}></span></td>{{end}}
 </tr>{{end}}
 </table></div>
+<div class="toast" id="toast"></div>
 <script>
+function est(){var f=document.getElementById("cfg"),iv=f.interval.value.trim(),q=f.quiet.value.trim().toLowerCase();if(/^\d+$/.test(iv))iv+="m";
+  var m=/(\d+)h/.exec(iv),n=/(\d+)m/.exec(iv),min=(m?+m[1]*60:0)+(n?+n[1]:0),qm=/^(\d+)-(\d+)$/.exec(q),qh=qm?((+qm[2]-+qm[1])+24)%24:0;
+  var total=+f.dataset.total,paused=+f.dataset.paused,live=total-paused,rounds=min?Math.floor((24-qh)*60/min):0;
+  document.getElementById("est").innerHTML='<b>'+live+'</b> live<i>·</i><b>'+paused+'</b> paused<i>·</i><b>'+rounds+'</b> rounds/day<i>·</i>~<b>'+(rounds*live).toLocaleString()+'</b> pings/day'}
+["input","change"].forEach(function(ev){document.getElementById("cfg").addEventListener(ev,est)});est();
+var tt;function toast(m,bad){var t=document.getElementById("toast");t.textContent=m;t.classList.toggle("bad",!!bad);t.classList.add("on");clearTimeout(tt);tt=setTimeout(function(){t.classList.remove("on")},2600)}
 (function(){var D=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],M=["January","February","March","April","May","June","July","August","September","October","November","December"];
 function tick(){var n=new Date(),h=n.getHours(),p=function(x){return String(x).padStart(2,"0")},ct=document.getElementById("ct"),cd=document.getElementById("cd");
 ct.innerHTML=(h%12||12)+":"+p(n.getMinutes())+":"+p(n.getSeconds())+"<small>"+(h<12?"AM":"PM")+"</small>";
@@ -506,7 +534,9 @@ async function openRow(tr){
   var n=d.pings.length,fails=d.pings.filter(function(p){return !p.ok}),slow=d.pings.filter(function(p){return p.slow}),good=n-fails.length-slow.length;
   var ms=d.pings.map(function(p){return p.ms});
   var avg=n?Math.round(ms.reduce(function(a,b){return a+b},0)/n):0;
-  var h='<div class="sum"><b>'+n+'</b> pings'+(n?' since <b>'+d.pings[0].ts+'</b>':'')+' · <b class="'+(fails.length?'ko':'')+'">'+fails.length+' failed</b> · <b class="'+(slow.length?'warn':'')+'">'+slow.length+' slow</b> · <b>'+good+' ok</b> · avg <b>'+avg+'ms</b></div>';
+  var off=tr.dataset.off==="1";
+  var h='<label class="sw"><input type="checkbox"'+(off?'':' checked')+' onchange="togglePing(this)"><span>ping this app: <b>'+(off?'paused':'on')+'</b></span></label>';
+  h+='<div class="sum"><b>'+n+'</b> pings'+(n?' since <b>'+d.pings[0].ts+'</b>':'')+' · <b class="'+(fails.length?'ko':'')+'">'+fails.length+' failed</b> · <b class="'+(slow.length?'warn':'')+'">'+slow.length+' slow</b> · <b>'+good+' ok</b> · avg <b>'+avg+'ms</b></div>';
   var mx=n?Math.max.apply(null,ms):1;
   var rank=function(p){return p.ok?(p.slow?1:2):0};
   var rows=d.pings.slice().reverse().sort(function(a,b){return rank(a)-rank(b)});
@@ -516,6 +546,18 @@ async function openRow(tr){
     +'</table></div>';
   det.querySelector(".in").innerHTML=h;
 }
+async function togglePing(cb){
+  var tr=cb.closest("tr.det").previousElementSibling,off=!cb.checked;
+  var r=await fetch("/settings",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"url="+encodeURIComponent(tr.dataset.url)+"&off="+(off?1:0)});
+  if(!r.ok){cb.checked=!cb.checked;toast(await r.text(),true);return}
+  toast((off?"paused ":"pinging again ")+tr.dataset.url.replace(/^https?:\/\//,""));goDay(location.href,true);
+}
+document.getElementById("cfg").addEventListener("submit",async function(e){
+  e.preventDefault();var f=e.target,iv=f.interval.value.trim();if(/^\d+$/.test(iv))iv+="m";
+  var r=await fetch("/settings",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"interval="+encodeURIComponent(iv)+"&quiet="+encodeURIComponent(f.quiet.value.trim())});
+  var t=(await r.text()).trim();toast(r.ok?"saved · "+t:t,!r.ok);
+  if(r.ok){document.getElementById("ev").textContent=iv;document.getElementById("qt").textContent=f.quiet.value.trim()||"off";goDay(location.href,true)}
+});
 var swapping=false;
 async function goDay(href,silent){
   if(swapping)return;swapping=true;
@@ -525,7 +567,8 @@ async function goDay(href,silent){
     var h=await (await fetch(href,{headers:{Accept:"text/html"}})).text();
     if(!silent)await wait;
     var d=new DOMParser().parseFromString(h,"text/html");
-    [".clock",".days",".wrap"].forEach(function(s){document.querySelector(s).replaceWith(d.querySelector(s))});
+    [".clock",".days",".wrap",".sub"].forEach(function(s){document.querySelector(s).replaceWith(d.querySelector(s))});
+    var c=document.getElementById("cfg");c.dataset.paused=d.getElementById("cfg").dataset.paused;c.dataset.total=d.getElementById("cfg").dataset.total;est();
     tick();if(!silent)history.pushState(null,"",href);
     open.forEach(function(u){var tr=document.querySelector('tr.r[data-url="'+u+'"]');if(tr)openRow(tr)});
   }finally{
@@ -536,6 +579,7 @@ function arrow(id){var a=document.getElementById(id);if(a&&!a.classList.contains
 document.addEventListener("keydown",function(e){if(e.key==="ArrowLeft")arrow("dp");else if(e.key==="ArrowRight")arrow("dn")});
 document.addEventListener("click",function(e){
   var a=e.target.closest("#dp,#dn");if(a){e.preventDefault();arrow(a.id);return}
+  if(e.target.closest("#ev,#qt")){document.getElementById("cfg").classList.toggle("on");return}
   var tr=e.target.closest("tr.r");if(!tr||e.target.closest("a"))return;
   tr.classList.contains("open")?closeRow(tr):openRow(tr)});
 window.addEventListener("popstate",function(){goDay(location.href,true)});
@@ -569,11 +613,14 @@ func serve(addr string) {
 		}
 		for i := range g.Rows {
 			g.Rows[i].row = byURL[g.Rows[i].URL]
+			g.Rows[i].Paused = isPaused(g.Rows[i].URL)
 		}
+		// Paused apps sink to the bottom so the live list stays readable.
+		sort.SliceStable(g.Rows, func(i, j int) bool { return !g.Rows[i].Paused && g.Rows[j].Paused })
 		var next int64
 		if s.LastRound != nil {
 			if t, err := time.Parse("2006-01-02 15:04:05", s.LastRound.TS); err == nil {
-				next = t.Add(interval).UnixMilli()
+				next = t.Add(getInterval()).UnixMilli()
 			}
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -581,7 +628,7 @@ func serve(addr string) {
 		if s.LastRound != nil {
 			down = s.LastRound.Total - s.LastRound.OK
 		}
-		page.Execute(w, map[string]interface{}{"S": s, "Down": down, "Pct": pct(s.OK, s.Pings), "G": g, "Next": next, "Every": short(interval)})
+		page.Execute(w, map[string]interface{}{"S": s, "Down": down, "Pct": pct(s.OK, s.Pings), "G": g, "Next": next, "Every": short(getInterval()), "Quiet": quietLabel(), "Paused": pausedCount()})
 	})
 	mux.HandleFunc("/health", func(w http.ResponseWriter, req *http.Request) {
 		mu.RLock()
@@ -592,7 +639,7 @@ func serve(addr string) {
 			return
 		}
 		t, _ := time.Parse("2006-01-02 15:04:05", lr.TS)
-		if time.Since(t) > 3*interval {
+		if time.Since(t) > 3*getInterval() && quietUntil(time.Now()).IsZero() {
 			http.Error(w, "stale: last round "+lr.TS, http.StatusServiceUnavailable)
 			return
 		}
@@ -611,6 +658,34 @@ func serve(addr string) {
 			w.Write(b)
 		})
 	}
+	// GET /settings -> json. POST /settings  interval=1h&quiet=23-6  or  url=https://x&off=1
+	mux.HandleFunc("/settings", func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(currentSettings())
+			return
+		}
+		if req.Method != http.MethodPost {
+			http.Error(w, "GET or POST only", http.StatusMethodNotAllowed)
+			return
+		}
+		var err error
+		if u := req.FormValue("url"); u != "" {
+			err = setPaused(u, req.FormValue("off") == "1")
+		} else {
+			d, perr := time.ParseDuration(req.FormValue("interval"))
+			if perr != nil || d < time.Minute || d > 24*time.Hour {
+				http.Error(w, "interval: 1m to 24h, e.g. 1h", http.StatusBadRequest)
+				return
+			}
+			err = setSchedule(d, req.FormValue("quiet"))
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		fmt.Fprintf(w, "every %s, quiet %s, %d paused\n", short(getInterval()), quietLabel(), pausedCount())
+	})
 	mux.HandleFunc("/pings", func(w http.ResponseWriter, req *http.Request) {
 		u := req.URL.Query().Get("url")
 		w.Header().Set("Content-Type", "application/json")
